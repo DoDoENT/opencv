@@ -7,10 +7,12 @@
 #include <opencv2/core.hpp>
 #include <opencv2/core/utility.hpp>
 #include <opencv2/imgproc.hpp>
-#include <opencv2/calib3d.hpp>
+#include <opencv2/geometry.hpp>
+#include <opencv2/calib.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
+#include <opencv2/objdetect.hpp>
 #include "opencv2/objdetect/charuco_detector.hpp"
 
 using namespace cv;
@@ -144,12 +146,12 @@ public:
 
         if (useFisheye) {
             // the fisheye model has its own enum, so overwrite the flags
-            flag = fisheye::CALIB_FIX_SKEW | fisheye::CALIB_RECOMPUTE_EXTRINSIC;
-            if(fixK1)                   flag |= fisheye::CALIB_FIX_K1;
-            if(fixK2)                   flag |= fisheye::CALIB_FIX_K2;
-            if(fixK3)                   flag |= fisheye::CALIB_FIX_K3;
-            if(fixK4)                   flag |= fisheye::CALIB_FIX_K4;
-            if (calibFixPrincipalPoint) flag |= fisheye::CALIB_FIX_PRINCIPAL_POINT;
+            flag = CALIB_FIX_SKEW | CALIB_RECOMPUTE_EXTRINSIC;
+            if(fixK1)                   flag |= CALIB_FIX_K1;
+            if(fixK2)                   flag |= CALIB_FIX_K2;
+            if(fixK3)                   flag |= CALIB_FIX_K3;
+            if(fixK4)                   flag |= CALIB_FIX_K4;
+            if (calibFixPrincipalPoint) flag |= CALIB_FIX_PRINCIPAL_POINT;
         }
 
         calibrationPattern = NOT_EXISTING;
@@ -339,6 +341,7 @@ int main(int argc, char* argv[])
             else if (s.arucoDictName == "DICT_APRILTAG_25h9") { arucoDict = cv::aruco::DICT_APRILTAG_25h9; }
             else if (s.arucoDictName == "DICT_APRILTAG_36h10") { arucoDict = cv::aruco::DICT_APRILTAG_36h10; }
             else if (s.arucoDictName == "DICT_APRILTAG_36h11") { arucoDict = cv::aruco::DICT_APRILTAG_36h11; }
+            else if (s.arucoDictName == "DICT_ARUCO_MIP_36h12") { arucoDict = cv::aruco::DICT_ARUCO_MIP_36h12; }
             else {
                 cout << "incorrect name of aruco dictionary \n";
                 return 1;
@@ -732,12 +735,12 @@ static void saveCameraParams( Settings& s, Size& imageSize, Mat& cameraMatrix, M
         if (s.useFisheye)
         {
             flagsStringStream << "flags:"
-                << (s.flag & fisheye::CALIB_FIX_SKEW ? " +fix_skew" : "")
-                << (s.flag & fisheye::CALIB_FIX_K1 ? " +fix_k1" : "")
-                << (s.flag & fisheye::CALIB_FIX_K2 ? " +fix_k2" : "")
-                << (s.flag & fisheye::CALIB_FIX_K3 ? " +fix_k3" : "")
-                << (s.flag & fisheye::CALIB_FIX_K4 ? " +fix_k4" : "")
-                << (s.flag & fisheye::CALIB_RECOMPUTE_EXTRINSIC ? " +recompute_extrinsic" : "");
+                << (s.flag & CALIB_FIX_SKEW ? " +fix_skew" : "")
+                << (s.flag & CALIB_FIX_K1 ? " +fix_k1" : "")
+                << (s.flag & CALIB_FIX_K2 ? " +fix_k2" : "")
+                << (s.flag & CALIB_FIX_K3 ? " +fix_k3" : "")
+                << (s.flag & CALIB_FIX_K4 ? " +fix_k4" : "")
+                << (s.flag & CALIB_RECOMPUTE_EXTRINSIC ? " +recompute_extrinsic" : "");
         }
         else
         {

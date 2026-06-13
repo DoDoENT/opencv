@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import os, tempfile, numpy as np
 
 import sys
@@ -20,10 +18,10 @@ class aruco_objdetect_test(NewOpenCVTests):
             square_size = 100
             aruco_type = [cv.aruco.DICT_4X4_1000, cv.aruco.DICT_5X5_1000, cv.aruco.DICT_6X6_1000,
                         cv.aruco.DICT_7X7_1000, cv.aruco.DICT_ARUCO_ORIGINAL, cv.aruco.DICT_APRILTAG_16h5,
-                        cv.aruco.DICT_APRILTAG_25h9, cv.aruco.DICT_APRILTAG_36h10, cv.aruco.DICT_APRILTAG_36h11]
+                        cv.aruco.DICT_APRILTAG_25h9, cv.aruco.DICT_APRILTAG_36h10, cv.aruco.DICT_APRILTAG_36h11, cv.aruco.DICT_ARUCO_MIP_36h12]
             aruco_type_str = ['DICT_4X4_1000','DICT_5X5_1000', 'DICT_6X6_1000',
                         'DICT_7X7_1000', 'DICT_ARUCO_ORIGINAL', 'DICT_APRILTAG_16h5',
-                        'DICT_APRILTAG_25h9', 'DICT_APRILTAG_36h10', 'DICT_APRILTAG_36h11']
+                        'DICT_APRILTAG_25h9', 'DICT_APRILTAG_36h10', 'DICT_APRILTAG_36h11', 'DICT_ARUCO_MIP_36h12']
             marker_size = 0.8*square_size
             board_width = cols*square_size
             board_height = rows*square_size
@@ -54,9 +52,9 @@ class aruco_objdetect_test(NewOpenCVTests):
                     _charucoCorners, _charuco_ids_cv, marker_corners_cv, marker_ids_cv = charuco_detector.detectBoard(from_cv_img)
                     marker_corners_svg_map, marker_corners_cv_map = {}, {}
                     for i in range(len(marker_ids_svg)):
-                        marker_corners_svg_map[int(marker_ids_svg[i][0])] = marker_corners_svg[i]
+                        marker_corners_svg_map[int(marker_ids_svg[i])] = marker_corners_svg[i]
                     for i in range(len(marker_ids_cv)):
-                        marker_corners_cv_map[int(marker_ids_cv[i][0])] = marker_corners_cv[i]
+                        marker_corners_cv_map[int(marker_ids_cv[i])] = marker_corners_cv[i]
 
                     for key_svg in marker_corners_svg_map.keys():
                         marker_svg = marker_corners_svg_map[key_svg]
@@ -111,9 +109,9 @@ class aruco_objdetect_test(NewOpenCVTests):
                     _charucoCorners, _charuco_ids_cv, marker_corners_cv, marker_ids_cv = charuco_detector.detectBoard(from_cv_img)
                     marker_corners_svg_map, marker_corners_cv_map = {}, {}
                     for i in range(len(marker_ids_svg)):
-                        marker_corners_svg_map[int(marker_ids_svg[i][0])] = marker_corners_svg[i]
+                        marker_corners_svg_map[int(marker_ids_svg[i])] = marker_corners_svg[i]
                     for i in range(len(marker_ids_cv)):
-                        marker_corners_cv_map[int(marker_ids_cv[i][0])] = marker_corners_cv[i]
+                        marker_corners_cv_map[int(marker_ids_cv[i])] = marker_corners_cv[i]
 
                     for key_svg in marker_corners_svg_map.keys():
                         marker_svg = marker_corners_svg_map[key_svg]

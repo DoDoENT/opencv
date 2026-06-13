@@ -146,17 +146,16 @@ CV_ANNOTATE_NO_SANITIZE_MEMORY lapack_LU(fptype* a, size_t a_step, int m, fptype
         else
         {
             int ldb = (int)(b_step / sizeof(fptype));
-            fptype* tmpB = new fptype[m*n];
+            std::vector<fptype> tmpB(m*n+1);
 
-            transpose(b, ldb, tmpB, m, m, n);
+            transpose(b, ldb, &tmpB[0], m, m, n);
 
             if(typeid(fptype) == typeid(float))
-                sgesv_(&_m, &_n, (float*)a, &lda, piv, (float*)tmpB, &_m, _info);
+                sgesv_(&_m, &_n, (float*)a, &lda, piv, (float*)&tmpB[0], &_m, _info);
             else if(typeid(fptype) == typeid(double))
-                dgesv_(&_m, &_n, (double*)a, &lda, piv, (double*)tmpB, &_m, _info);
+                dgesv_(&_m, &_n, (double*)a, &lda, piv, (double*)&tmpB[0], &_m, _info);
 
-            transpose(tmpB, m, b, ldb, n, m);
-            delete[] tmpB;
+            transpose(&tmpB[0], m, b, ldb, n, m);
         }
     }
     else
@@ -170,6 +169,7 @@ CV_ANNOTATE_NO_SANITIZE_MEMORY lapack_LU(fptype* a, size_t a_step, int m, fptype
 #if defined (ACCELERATE_NEW_LAPACK) && defined (ACCELERATE_LAPACK_ILP64)
     *info = static_cast<int>(_info[0]);
 #endif
+    int retcode = *info >= 0 ? CV_HAL_ERROR_OK : CV_HAL_ERROR_NOT_IMPLEMENTED;
 
     int sign = 0;
     if(*info == 0)
@@ -181,7 +181,7 @@ CV_ANNOTATE_NO_SANITIZE_MEMORY lapack_LU(fptype* a, size_t a_step, int m, fptype
     else
         *info = 0; //in opencv LU function zero means error
 
-    return CV_HAL_ERROR_OK;
+    return retcode;
 }
 
 template <typename fptype> static inline int
@@ -233,7 +233,7 @@ lapack_Cholesky(fptype* a, size_t a_step, int m, fptype* b, size_t b_step, int n
     if(lapackStatus == 0) *info = true;
     else *info = false; //in opencv Cholesky function false means error
 
-    return CV_HAL_ERROR_OK;
+    return lapackStatus >= 0 ? CV_HAL_ERROR_OK : CV_HAL_ERROR_NOT_IMPLEMENTED;
 }
 
 template <typename fptype> static inline int
@@ -257,6 +257,7 @@ lapack_SVD(fptype* a, size_t a_step, fptype *w, fptype* u, size_t u_step, fptype
     cv::AutoBuffer<int> iworkBuf_(8 * std::min(m, n));
 #endif
     auto iworkBuf = iworkBuf_.data();
+    std::vector<fptype> ubuf;
     fptype work1 = 0;
 
     //A already transposed and m>=n
@@ -275,7 +276,8 @@ lapack_SVD(fptype* a, size_t a_step, fptype *w, fptype* u, size_t u_step, fptype
 
     if((flags & CV_HAL_SVD_MODIFY_A) && (flags & CV_HAL_SVD_FULL_UV)) //U stored in a
     {
-        u = new fptype[m*m];
+        ubuf.resize(m*m);
+        u = &ubuf[0];
         ldu = m;
     }
 
@@ -284,18 +286,21 @@ lapack_SVD(fptype* a, size_t a_step, fptype *w, fptype* u, size_t u_step, fptype
     else if(typeid(fptype) == typeid(double))
         OCV_LAPACK_FUNC(dgesdd)(mode, &_m, &_n, (double*)a, &lda, (double*)w, (double*)u, &ldu, (double*)vt, &ldv, (double*)&work1, &lwork, iworkBuf, _info);
 
+    if(*info < 0)
+        return CV_HAL_ERROR_NOT_IMPLEMENTED;
+
     lwork = (int)round(work1); //optimal buffer size
-    fptype* buffer = new fptype[lwork + 1];
+    std::vector<fptype> buffer(lwork + 1);
 
     // Make sure MSAN sees the memory as having been written.
     // MSAN does not think it has been written because a different language is called.
     // Note: we do this here because if dgesdd is C++, MSAN errors can be reported within it.
-    CV_ANNOTATE_MEMORY_IS_INITIALIZED(buffer, sizeof(fptype) * (lwork + 1));
+    CV_ANNOTATE_MEMORY_IS_INITIALIZED(buffer.data(), sizeof(fptype) * (lwork + 1));
 
     if(typeid(fptype) == typeid(float))
-        OCV_LAPACK_FUNC(sgesdd)(mode, &_m, &_n, (float*)a, &lda, (float*)w, (float*)u, &ldu, (float*)vt, &ldv, (float*)buffer, &lwork, iworkBuf, _info);
+        OCV_LAPACK_FUNC(sgesdd)(mode, &_m, &_n, (float*)a, &lda, (float*)w, (float*)u, &ldu, (float*)vt, &ldv, (float*)&buffer[0], &lwork, iworkBuf, _info);
     else if(typeid(fptype) == typeid(double))
-        OCV_LAPACK_FUNC(dgesdd)(mode, &_m, &_n, (double*)a, &lda, (double*)w, (double*)u, &ldu, (double*)vt, &ldv, (double*)buffer, &lwork, iworkBuf, _info);
+        OCV_LAPACK_FUNC(dgesdd)(mode, &_m, &_n, (double*)a, &lda, (double*)w, (double*)u, &ldu, (double*)vt, &ldv, (double*)&buffer[0], &lwork, iworkBuf, _info);
 
 #if defined (ACCELERATE_NEW_LAPACK) && defined (ACCELERATE_LAPACK_ILP64)
     *info = static_cast<int>(_info[0]);
@@ -319,10 +324,10 @@ lapack_SVD(fptype* a, size_t a_step, fptype *w, fptype* u, size_t u_step, fptype
         for(int i = 0; i < m; i++)
             for(int j = 0; j < m; j++)
                 a[i*lda + j] = u[i*m + j];
-        delete[] u;
     }
 
-    delete[] buffer;
+    if(*info < 0)
+        return CV_HAL_ERROR_NOT_IMPLEMENTED;
     return CV_HAL_ERROR_OK;
 }
 
@@ -375,6 +380,9 @@ lapack_QR(fptype* a, size_t a_step, int m, int n, int k, fptype* b, size_t b_ste
             else if (typeid(fptype) == typeid(double))
                 OCV_LAPACK_FUNC(dgels)(mode, &_m, &_n, &_k, (double*)tmpA, &ldtmpA, (double*)b, &_m, (double*)&work1, &lwork, _info);
 
+            if (*info < 0)
+                return CV_HAL_ERROR_NOT_IMPLEMENTED;
+
             lwork = cvRound(work1); //optimal buffer size
             std::vector<fptype> workBufMemHolder(lwork + 1);
             fptype* buffer = &workBufMemHolder.front();
@@ -396,6 +404,9 @@ lapack_QR(fptype* a, size_t a_step, int m, int n, int k, fptype* b, size_t b_ste
             else if (typeid(fptype) == typeid(double))
                 OCV_LAPACK_FUNC(dgels)(mode, &_m, &_n, &_k, (double*)tmpA, &ldtmpA, (double*)tmpB, &_m, (double*)&work1, &lwork, _info);
 
+            if (*info < 0)
+                return CV_HAL_ERROR_NOT_IMPLEMENTED;
+
             lwork = cvRound(work1); //optimal buffer size
             std::vector<fptype> workBufMemHolder(lwork + 1);
             fptype* buffer = &workBufMemHolder.front();
@@ -414,6 +425,9 @@ lapack_QR(fptype* a, size_t a_step, int m, int n, int k, fptype* b, size_t b_ste
             sgeqrf_(&_m, &_n, (float*)tmpA, &ldtmpA, (float*)dst, (float*)&work1, &lwork, _info);
         else if (typeid(fptype) == typeid(double))
             dgeqrf_(&_m, &_n, (double*)tmpA, &ldtmpA, (double*)dst, (double*)&work1, &lwork, _info);
+
+        if (*info < 0)
+            return CV_HAL_ERROR_NOT_IMPLEMENTED;
 
         lwork = cvRound(work1); //optimal buffer size
         std::vector<fptype> workBufMemHolder(lwork + 1);
@@ -645,19 +659,17 @@ int lapack_Cholesky64f(double* a, size_t a_step, int m, double* b, size_t b_step
 
 int lapack_SVD32f(float* a, size_t a_step, float *w, float* u, size_t u_step, float* vt, size_t v_step, int m, int n, int flags)
 {
-
-    if(m < HAL_SVD_SMALL_MATRIX_THRESH)
+    if(m < HAL_SVD_SMALL_MATRIX_THRESH || n <= 0)
         return CV_HAL_ERROR_NOT_IMPLEMENTED;
-    int info;
+    int info = 0;
     return lapack_SVD(a, a_step, w, u, u_step, vt, v_step, m, n, flags, &info);
 }
 
 int lapack_SVD64f(double* a, size_t a_step, double *w, double* u, size_t u_step, double* vt, size_t v_step, int m, int n, int flags)
 {
-
-    if(m < HAL_SVD_SMALL_MATRIX_THRESH)
+    if(m < HAL_SVD_SMALL_MATRIX_THRESH || n <= 0)
         return CV_HAL_ERROR_NOT_IMPLEMENTED;
-    int info;
+    int info = 0;
     return lapack_SVD(a, a_step, w, u, u_step, vt, v_step, m, n, flags, &info);
 }
 

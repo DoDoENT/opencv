@@ -45,17 +45,17 @@ set(EMSCRIPTEN_VERSION_PATH "${EMSCRIPTEN_INCLUDE_DIR}/emscripten/version.h")
 if(NOT EXISTS "${EMSCRIPTEN_VERSION_PATH}")
   message(STATUS "${EMSCRIPTEN_INCLUDE_DIR}/emscripten/version.h is missing")
 else()
-  file(STRINGS "${EMSCRIPTEN_VERSION_PATH}" EMSCRIPTEN_VERSION_CONTENTS REGEX "^#define[ \t]+__EMSCRIPTEN_[a-z]+__[ \t][0-9]+")
+  file(STRINGS "${EMSCRIPTEN_VERSION_PATH}" EMSCRIPTEN_VERSION_CONTENTS REGEX "^#define[ \t]+__EMSCRIPTEN_[a-zA-Z]+__[ \t][0-9]+")
   if(NOT EMSCRIPTEN_VERSION_CONTENTS)
     message(STATUS "${EMSCRIPTEN_INCLUDE_DIR}/emscripten/version.h is exists, but is not readable")
   else()
-    if(EMSCRIPTEN_VERSION_CONTENTS MATCHES "__EMSCRIPTEN_major__[ \t]+([0-9]+)")
+    if(EMSCRIPTEN_VERSION_CONTENTS MATCHES "__EMSCRIPTEN_[mM][aA][jJ][oO][rR]__[ \t]+([0-9]+)")
       set(EMSCRIPTEN_VERSION_MAJOR "${CMAKE_MATCH_1}")
     endif()
-    if(EMSCRIPTEN_VERSION_CONTENTS MATCHES "__EMSCRIPTEN_minor__[ \t]+([0-9]+)")
+    if(EMSCRIPTEN_VERSION_CONTENTS MATCHES "__EMSCRIPTEN_[mM][iI][nN][oO][rR]__[ \t]+([0-9]+)")
       set(EMSCRIPTEN_VERSION_MINOR "${CMAKE_MATCH_1}")
     endif()
-    if(EMSCRIPTEN_VERSION_CONTENTS MATCHES "__EMSCRIPTEN_tiny__[ \t]+([0-9]+)")
+    if(EMSCRIPTEN_VERSION_CONTENTS MATCHES "__EMSCRIPTEN_[tT][iI][nN][yY]__[ \t]+([0-9]+)")
       set(EMSCRIPTEN_VERSION_TINY "${CMAKE_MATCH_1}")
     endif()
 
@@ -167,17 +167,6 @@ foreach(f ${test_files})
                     )
   list(APPEND opencv_test_js_file_deps "${test_dir}/${f}" "${opencv_test_js_bin_dir}/${f}")
 endforeach()
-
-# copy test data
-set(test_data "haarcascade_frontalface_default.xml")
-set(test_data_path "${PROJECT_SOURCE_DIR}/../../data/haarcascades/${test_data}")
-
-add_custom_command(OUTPUT "${opencv_test_js_bin_dir}/${test_data}"
-                   COMMAND ${CMAKE_COMMAND} -E copy_if_different "${test_data_path}" "${opencv_test_js_bin_dir}/${test_data}"
-                   DEPENDS "${test_data_path}"
-                   COMMENT "Copying ${test_data}"
-                  )
-list(APPEND opencv_test_js_file_deps "${test_data_path}" "${opencv_test_js_bin_dir}/${test_data}")
 
 add_custom_target(${PROJECT_NAME}_test
                   DEPENDS ${OCV_JS_PATH} ${opencv_test_js_file_deps})

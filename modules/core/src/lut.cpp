@@ -48,6 +48,11 @@ static LUTFunc getLUTFunc(const int srcDepth, const int dstDepth)
             case CV_32F:  ret = (LUTFunc)LUT_<uint8_t, int32_t>;   break; // float
             case CV_64F:  ret = (LUTFunc)LUT_<uint8_t, int64_t>;   break; // double
             case CV_16F:  ret = (LUTFunc)LUT_<uint8_t, int16_t>;   break; // hfloat
+            case CV_16BF: ret = (LUTFunc)LUT_<uint8_t, int16_t>;   break; // bfloat
+            case CV_Bool: ret = (LUTFunc)LUT_<uint8_t, uint8_t>;   break; // bool
+            case CV_64U:  ret = (LUTFunc)LUT_<uint8_t, uint64_t>;  break;
+            case CV_64S:  ret = (LUTFunc)LUT_<uint8_t, int64_t>;   break;
+            case CV_32U:  ret = (LUTFunc)LUT_<uint8_t, uint32_t>;  break;
             default:      ret = nullptr;                           break;
         }
     }
@@ -63,6 +68,11 @@ static LUTFunc getLUTFunc(const int srcDepth, const int dstDepth)
             case CV_32F:  ret = (LUTFunc)LUT_<uint16_t, int32_t>;  break; // float
             case CV_64F:  ret = (LUTFunc)LUT_<uint16_t, int64_t>;  break; // double
             case CV_16F:  ret = (LUTFunc)LUT_<uint16_t, int16_t>;  break; // hfloat
+            case CV_16BF: ret = (LUTFunc)LUT_<uint16_t, int16_t>;  break; // bfloat
+            case CV_Bool: ret = (LUTFunc)LUT_<uint16_t, uint8_t>;  break; // bool
+            case CV_64U:  ret = (LUTFunc)LUT_<uint16_t, uint64_t>; break;
+            case CV_64S:  ret = (LUTFunc)LUT_<uint16_t, int64_t>;  break;
+            case CV_32U:  ret = (LUTFunc)LUT_<uint16_t, uint32_t>; break;
             default:      ret = nullptr;                           break;
         }
     }
@@ -78,7 +88,7 @@ static bool ocl_LUT(InputArray _src, InputArray _lut, OutputArray _dst)
     int lcn = _lut.channels(), dcn = _src.channels(), ddepth = _lut.depth();
 
     UMat src = _src.getUMat(), lut = _lut.getUMat();
-    _dst.create(src.size(), CV_MAKETYPE(ddepth, dcn));
+    _dst.createSameSize(src, CV_MAKETYPE(ddepth, dcn));
     UMat dst = _dst.getUMat();
     int kercn = lcn == 1 ? std::min(4, ocl::predictOptimalVectorWidth(_src, _dst)) : dcn;
 
@@ -156,7 +166,7 @@ void cv::LUT( InputArray _src, InputArray _lut, OutputArray _dst )
                ocl_LUT(_src, _lut, _dst))
 
     Mat src = _src.getMat(), lut = _lut.getMat();
-    _dst.create(src.dims, src.size, CV_MAKETYPE(_lut.depth(), cn));
+    _dst.createSameSize(_src, CV_MAKETYPE(_lut.depth(), cn));
     Mat dst = _dst.getMat();
 
     if(lut_size == 256)

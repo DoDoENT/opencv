@@ -10,9 +10,13 @@ ocv_add_dispatched_file(has_non_zero SSE2 AVX2 LASX )
 ocv_add_dispatched_file(matmul SSE2 SSE4_1 AVX2 AVX512_SKX NEON_DOTPROD LASX)
 ocv_add_dispatched_file(mean SSE2 AVX2 LASX)
 ocv_add_dispatched_file(merge SSE2 AVX2 LASX)
+ocv_add_dispatched_file(minmax SSE2 SSE4_1 AVX2 VSX3 LASX)
+ocv_add_dispatched_file(nan_mask SSE2 AVX2 LASX)
 ocv_add_dispatched_file(split SSE2 AVX2 LASX)
 ocv_add_dispatched_file(sum SSE2 AVX2 LASX)
+ocv_add_dispatched_file(reduce SSE2 SSSE3 AVX2 NEON_DOTPROD)
 ocv_add_dispatched_file(norm SSE2 SSE4_1 AVX AVX2 NEON_DOTPROD LASX)
+ocv_add_dispatched_file(transpose AVX AVX2 NEON RVV LASX)
 
 # dispatching for accuracy tests
 ocv_add_dispatched_file_force_all(test_intrin128 TEST SSE2 SSE3 SSSE3 SSE4_1 SSE4_2 AVX FP16 AVX2 AVX512_SKX)
@@ -176,14 +180,10 @@ ocv_target_link_libraries(${the_module} PRIVATE
     "${ZLIB_LIBRARIES}" "${OPENCL_LIBRARIES}" "${VA_LIBRARIES}"
     "${OPENGL_LIBRARIES}"
     "${GLX_LIBRARIES}"
-    "${LAPACK_LIBRARIES}" "${CPUFEATURES_LIBRARIES}" "${HALIDE_LIBRARIES}"
+    "${LAPACK_LIBRARIES}" "${CPUFEATURES_LIBRARIES}"
     "${ITT_LIBRARIES}"
     "${OPENCV_HAL_LINKER_LIBS}"
 )
-
-if(OPENCV_CORE_EXCLUDE_C_API)
-  ocv_target_compile_definitions(${the_module} PRIVATE "OPENCV_EXCLUDE_C_API=1")
-endif()
 
 if(OPENCV_DISABLE_THREAD_SUPPORT)
   ocv_target_compile_definitions(${the_module} PUBLIC "OPENCV_DISABLE_THREAD_SUPPORT=1")
@@ -215,6 +215,13 @@ if(HAVE_CUDA AND ENABLE_CUDA_FIRST_CLASS_LANGUAGE)
 endif()
 ocv_add_accuracy_tests(${test_libs})
 ocv_add_perf_tests()
+
+if (TARGET opencv_test_core AND HAVE_CUDA)
+  ocv_target_compile_definitions(opencv_test_core PRIVATE "HAVE_CUDA=1")
+endif()
+if (TARGET opencv_perf_core AND HAVE_CUDA)
+  ocv_target_compile_definitions(opencv_perf_core PRIVATE "HAVE_CUDA=1")
+endif()
 
 ocv_install_3rdparty_licenses(SoftFloat "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/SoftFloat/COPYING.txt")
 

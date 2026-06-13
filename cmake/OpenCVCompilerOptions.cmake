@@ -374,7 +374,7 @@ endif()
 
 # Apply "-Wl,--as-needed" linker flags: https://github.com/opencv/opencv/issues/7001
 if(NOT OPENCV_SKIP_LINK_AS_NEEDED)
-  if(UNIX AND (NOT APPLE OR NOT CMAKE_VERSION VERSION_LESS "3.2"))
+  if(UNIX)
     set(_option "-Wl,--as-needed")
     set(_saved_CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${_option}")  # requires CMake 3.2+ and CMP0056
@@ -390,7 +390,7 @@ endif()
 
 # Apply "-Wl,--no-undefined" linker flags: https://github.com/opencv/opencv/pull/21347
 if(NOT OPENCV_SKIP_LINK_NO_UNDEFINED)
-  if(UNIX AND ((NOT APPLE OR NOT CMAKE_VERSION VERSION_LESS "3.2") AND NOT CMAKE_SYSTEM_NAME MATCHES "OpenBSD"))
+  if(UNIX AND (NOT CMAKE_SYSTEM_NAME MATCHES "OpenBSD"))
     set(_option "-Wl,--no-undefined")
     set(_saved_CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${_option}")  # requires CMake 3.2+ and CMP0056
@@ -475,6 +475,14 @@ endif()
 
 if(APPLE AND NOT CMAKE_CROSSCOMPILING AND NOT DEFINED ENV{LDFLAGS} AND EXISTS "/usr/local/lib")
   link_directories("/usr/local/lib")
+endif()
+
+if(APPLE AND NOT CMAKE_CROSSCOMPILING AND CV_CLANG AND EXISTS "/usr/local/include")
+  # Apple Clang 17+ implicitly injects -I/usr/local/include as a high-priority
+  # user include, causing system-installed headers (e.g. Homebrew protobuf v4+)
+  # to override bundled third-party libraries added via -isystem.
+  # Demote /usr/local/include to -isystem so bundled -isystem paths are searched first.
+  add_compile_options("-isystem/usr/local/include")
 endif()
 
 if(ENABLE_BUILD_HARDENING)

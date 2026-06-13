@@ -1389,6 +1389,51 @@ inline int hal_ni_scharr(const uchar* src_data, size_t src_step, uchar* dst_data
 //! @endcond
 
 /**
+   @brief Computes Laplacian filter
+   @param src_data Source image data
+   @param src_step Source image step
+   @param dst_data Destination image data
+   @param dst_step Destination image step
+   @param width Source image width
+   @param height Source image height
+   @param src_depth Depth of source image
+   @param dst_depth Depth of destination image
+   @param cn Number of channels
+   @param ksize Kernel size (1, 3, or 5)
+   @param border_type Border type
+   @param border_value Border value for CONSTANT
+ */
+inline int hal_ni_laplacian(const uchar* src_data, size_t src_step, uchar* dst_data, size_t dst_step, int width, int height, int src_depth, int dst_depth, int cn, int ksize, int border_type, uchar border_value)  { return CV_HAL_ERROR_NOT_IMPLEMENTED;}
+
+//! @cond IGNORED
+#define cv_hal_laplacian hal_ni_laplacian
+//! @endcond
+
+/**
+   @brief Compute spatial gradient (Sobel X and Y simultaneously).
+   @param src_data Source image data (8-bit single channel)
+   @param src_step Source image step
+   @param dx_data  Destination X-gradient data (16-bit signed)
+   @param dx_step  Destination X-gradient step
+   @param dy_data  Destination Y-gradient data (16-bit signed)
+   @param dy_step  Destination Y-gradient step
+   @param width    Image width
+   @param height   Image height
+   @param ksize    Kernel size (must be 3)
+   @param border_type Border type (BORDER_DEFAULT or BORDER_REPLICATE)
+*/
+inline int hal_ni_spatialGradient(const uchar* src_data, size_t src_step,
+                                   short* dx_data, size_t dx_step,
+                                   short* dy_data, size_t dy_step,
+                                   int width, int height,
+                                   int ksize, int border_type)
+{ return CV_HAL_ERROR_NOT_IMPLEMENTED; }
+
+//! @cond IGNORED
+#define cv_hal_spatialGradient hal_ni_spatialGradient
+//! @endcond
+
+/**
    @brief Perform Gaussian Blur and downsampling for input tile.
    @param depth Depths of source and destination image
    @param src_data Source image data
@@ -1473,38 +1518,6 @@ inline int hal_ni_canny(const uchar* src_data, size_t src_step, uchar* dst_data,
 
 //! @cond IGNORED
 #define cv_hal_canny hal_ni_canny
-//! @endcond
-
-/**
-   @brief Calculates all of the moments up to the third order of a polygon or rasterized shape for image
-   @param src_data Source image data
-   @param src_step Source image step
-   @param src_type source pints type
-   @param width Source image width
-   @param height Source image height
-   @param binary If it is true, all non-zero image pixels are treated as 1's
-   @param m Output array of moments (10 values) in the following order:
-    m00, m10, m01, m20, m11, m02, m30, m21, m12, m03.
-   @sa moments
-*/
-inline int hal_ni_imageMoments(const uchar* src_data, size_t src_step, int src_type, int width, int height, bool binary, double m[10])
-{ return CV_HAL_ERROR_NOT_IMPLEMENTED; }
-
-/**
-   @brief Calculates all of the moments up to the third order of a polygon of 2d points
-   @param src_data Source points (Point 2x32f or 2x32s)
-   @param src_size Source points count
-   @param src_type source pints type
-   @param m Output array of moments (10 values) in the following order:
-    m00, m10, m01, m20, m11, m02, m30, m21, m12, m03.
-   @sa moments
-*/
-inline int hal_ni_polygonMoments(const uchar* src_data, size_t src_size, int src_type, double m[10])
-{ return CV_HAL_ERROR_NOT_IMPLEMENTED; }
-
-//! @cond IGNORED
-#define cv_hal_imageMoments hal_ni_imageMoments
-#define cv_hal_polygonMoments hal_ni_polygonMoments
 //! @endcond
 
 /**

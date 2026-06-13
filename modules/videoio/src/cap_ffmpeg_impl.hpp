@@ -526,14 +526,13 @@ inline static std::string _opencv_ffmpeg_get_error_string(int error_code)
 
 static inline int64_t to_avtb(int64_t ts, AVRational tb)
 {
-    return av_rescale_q(ts, tb, AV_TIME_BASE_Q);
+    return av_rescale_q(ts, tb, av_make_q(1, AV_TIME_BASE));
 }
 
 static inline int64_t from_avtb(int64_t ts_avtb, AVRational tb)
 {
-    return av_rescale_q(ts_avtb, AV_TIME_BASE_Q, tb);
+    return av_rescale_q(ts_avtb, av_make_q(1, AV_TIME_BASE), tb);
 }
-
 
 struct CvCapture_FFMPEG
 {
@@ -612,6 +611,7 @@ struct CvCapture_FFMPEG
     bool rawModeInitialized;
     bool rawSeek;
     bool convertRGB;
+    bool enableAlpha;
     AVPacket packet_filtered;
 #if LIBAVFORMAT_BUILD >= CALC_FFMPEG_VERSION(58, 20, 100)
     AVBSFContext* bsfc;
@@ -623,6 +623,7 @@ struct CvCapture_FFMPEG
     int use_opencl;
     int extraDataIdx;
     int requestedThreads;
+    int image_seq_start;  // image2 demuxer start_number; -1 means unset
 };
 
 void CvCapture_FFMPEG::init()
@@ -669,6 +670,7 @@ void CvCapture_FFMPEG::init()
     rawModeInitialized = false;
     rawSeek = false;
     convertRGB = true;
+    enableAlpha = false;
     memset(&packet_filtered, 0, sizeof(packet_filtered));
     av_init_packet(&packet_filtered);
     bsfc = NULL;
@@ -677,6 +679,7 @@ void CvCapture_FFMPEG::init()
     use_opencl = 0;
     extraDataIdx = 1;
     requestedThreads = cv::getNumberOfCPUs();
+    image_seq_start = -1;
 }
 
 
@@ -1085,9 +1088,10 @@ bool CvCapture_FFMPEG::open(const char* _filename, int index, const Ptr<IStreamR
             CV_LOG_WARNING(NULL, "VIDEOIO/FFMPEG: BGR conversion turned OFF, decoded frame will be "
                                  "returned in its original format. "
                                  "Multiplanar formats are not supported by the backend. "
-                                 "Only GRAY8/GRAY16LE pixel formats have been tested. "
+                                 "Only GRAY8/GRAY16LE/RGBA pixel formats have been tested. "
                                  "Use at your own risk.");
         }
+
         if (params.has(CAP_PROP_FORMAT))
         {
             int value = params.get<int>(CAP_PROP_FORMAT);
@@ -1098,8 +1102,19 @@ bool CvCapture_FFMPEG::open(const char* _filename, int index, const Ptr<IStreamR
             }
             else
             {
-                CV_LOG_ERROR(NULL, "VIDEOIO/FFMPEG: CAP_PROP_FORMAT parameter value is invalid/unsupported: " << value);
-                return false;
+                if (value == CV_8UC3)
+                {
+                    enableAlpha = false;
+                }
+                else if (value == CV_8UC4)
+                {
+                    enableAlpha = true;
+                }
+                else
+                {
+                    CV_LOG_ERROR(NULL, "VIDEOIO/FFMPEG: CAP_PROP_FORMAT parameter value is invalid/unsupported: " << value);
+                    return false;
+                }
             }
         }
         if(!rawMode) {
@@ -1146,6 +1161,10 @@ bool CvCapture_FFMPEG::open(const char* _filename, int index, const Ptr<IStreamR
         {
             nThreads = requestedThreads = params.get<int>(CAP_PROP_N_THREADS);
         }
+        if (params.has(CAP_PROP_IMAGE_SEQ_START))
+        {
+            image_seq_start = params.get<int>(CAP_PROP_IMAGE_SEQ_START);
+        }
         if (params.warnUnusedParameters())
         {
             CV_LOG_ERROR(NULL, "VIDEOIO/FFMPEG: unsupported parameters in .open(), see logger INFO channel for details. Bailout");
@@ -1179,6 +1198,10 @@ bool CvCapture_FFMPEG::open(const char* _filename, int index, const Ptr<IStreamR
 #else
         av_dict_set(&dict, "rtsp_transport", "tcp", 0);
 #endif
+    }
+    if (image_seq_start >= 0)
+    {
+        av_dict_set_int(&dict, "start_number", image_seq_start, 0);
     }
     CV_FFMPEG_FMT_CONST AVInputFormat* input_format = NULL;
     AVDictionaryEntry* entry = av_dict_get(dict, "input_format", NULL, 0);
@@ -1879,9 +1902,12 @@ bool CvCapture_FFMPEG::retrieveFrame(int flag, unsigned char** data, int* step, 
         << ", primaries: " << av_color_primaries_name(sw_picture->color_primaries)
         << ", transfer: " << av_color_transfer_name(sw_picture->color_trc)
     );
-    const AVPixelFormat result_format = convertRGB ? AV_PIX_FMT_BGR24 : (AVPixelFormat)sw_picture->format;
+
+    const AVPixelFormat color_format = enableAlpha ? AV_PIX_FMT_BGRA : AV_PIX_FMT_BGR24;
+    const AVPixelFormat result_format = convertRGB ? color_format : (AVPixelFormat)sw_picture->format;
     switch (result_format)
     {
+    case AV_PIX_FMT_BGRA: *depth = CV_8U; *cn = 4; break;
     case AV_PIX_FMT_BGR24: *depth = CV_8U; *cn = 3; break;
     case AV_PIX_FMT_GRAY8: *depth = CV_8U; *cn = 1; break;
     case AV_PIX_FMT_GRAY16LE: *depth = CV_16U; *cn = 1; break;
@@ -2074,7 +2100,7 @@ static inline double getCodecIdFourcc(const AVCodecID codec_id)
 
 double CvCapture_FFMPEG::getProperty( int property_id ) const
 {
-    if( !video_st || (!rawMode && !context) ) return 0;
+    if( !video_st || (!rawMode && !context) ) return CAP_PROP_UNKNOWN;
 
     switch( property_id )
     {
@@ -2103,7 +2129,7 @@ double CvCapture_FFMPEG::getProperty( int property_id ) const
         if (fourcc != -1) return fourcc;
         const double codec_tag = (double)video_st->CV_FFMPEG_CODEC_FIELD->codec_tag;
         if (codec_tag) return codec_tag;
-        else return -1;
+        else return CAP_PROP_UNKNOWN;
     }
     case CAP_PROP_SAR_NUM:
         return _opencv_ffmpeg_get_sample_aspect_ratio(ic->streams[video_stream]).num;
@@ -2117,11 +2143,17 @@ double CvCapture_FFMPEG::getProperty( int property_id ) const
         AVPixelFormat pix_fmt = video_st->codec->pix_fmt;
 #endif
         unsigned int fourcc_tag = avcodec_pix_fmt_to_codec_tag(pix_fmt);
-        return (fourcc_tag == 0) ? (double)-1 : (double)fourcc_tag;
+        return (fourcc_tag == 0) ? static_cast<double>(CAP_PROP_UNKNOWN) : (double)fourcc_tag;
     }
     case CAP_PROP_FORMAT:
         if (rawMode)
-            return -1;
+            return CAP_PROP_UNKNOWN;
+        else if (!convertRGB)
+            return CV_8UC1;
+        else if (enableAlpha)
+            return CV_8UC4;
+        else
+            return CV_8UC3;
         break;
     case CAP_PROP_CONVERT_RGB:
         return convertRGB;
@@ -2149,6 +2181,8 @@ double CvCapture_FFMPEG::getProperty( int property_id ) const
     case CAP_PROP_N_THREADS:
         if (!rawMode)
             return static_cast<double>(context->thread_count);
+        else
+            return 0;
         break;
     case CAP_PROP_PTS:
         return static_cast<double>(pts_in_fps_time_base);
@@ -2158,7 +2192,7 @@ double CvCapture_FFMPEG::getProperty( int property_id ) const
         break;
     }
 
-    return 0;
+    return CAP_PROP_UNKNOWN;
 }
 
 double CvCapture_FFMPEG::r2d(AVRational r) const
@@ -2365,8 +2399,20 @@ bool CvCapture_FFMPEG::setProperty( int property_id, double value )
         seek((int64_t)(value*ic->duration));
         return true;
     case CAP_PROP_FORMAT:
+        if (!convertRGB)
+            return false;
         if (value == -1)
             return setRaw();
+        else if (value == CV_8UC3)
+        {
+            enableAlpha = false;
+            return true;
+        }
+        else if (value == CV_8UC4)
+        {
+            enableAlpha = true;
+            return true;
+        }
         return false;
     case CAP_PROP_CONVERT_RGB:
         convertRGB = (value != 0);
@@ -2775,6 +2821,12 @@ bool CvVideoWriter_FFMPEG::writeFrame( const unsigned char* data, int step, int 
             return false;
         }
     }
+    else if (input_pix_fmt == AV_PIX_FMT_BGRA) {
+        if (cn != 4) {
+            CV_LOG_WARNING(NULL, "write frame skipped - expected 4 channels but got " << cn);
+            return false;
+        }
+    }
     else if (input_pix_fmt == AV_PIX_FMT_GRAY8 || input_pix_fmt == AV_PIX_FMT_GRAY16LE) {
         if (cn != 1) {
             CV_LOG_WARNING(NULL, "write frame skipped - expected 1 channel but got " << cn);
@@ -2957,7 +3009,7 @@ double CvVideoWriter_FFMPEG::getProperty(int propId) const
         return static_cast<double>(use_opencl);
     }
 #endif
-    return 0;
+    return CAP_PROP_UNKNOWN;
 }
 
 bool CvVideoWriter_FFMPEG::setProperty(int property_id, double value)
@@ -3151,6 +3203,8 @@ bool CvVideoWriter_FFMPEG::open( const char * filename, int fourcc,
         use_opencl = params.get<int>(VIDEOWRITER_PROP_HW_ACCELERATION_USE_OPENCL);
     }
 
+    bool enable_alpha = params.get<bool>(VIDEOWRITER_PROP_ENABLE_ALPHA, false);
+
     if (params.warnUnusedParameters())
     {
         CV_LOG_ERROR(NULL, "VIDEOIO/FFMPEG: unsupported parameters in VideoWriter, see logger INFO channel for details");
@@ -3185,7 +3239,7 @@ bool CvVideoWriter_FFMPEG::open( const char * filename, int fourcc,
     {
         switch (depth)
         {
-        case CV_8U: input_pix_fmt = AV_PIX_FMT_BGR24; break;
+        case CV_8U: input_pix_fmt = enable_alpha ? AV_PIX_FMT_BGRA : AV_PIX_FMT_BGR24; break;
         default:
             CV_LOG_WARNING(NULL, "Unsupported input depth for color image: " << depth);
             return false;
@@ -3387,7 +3441,7 @@ bool CvVideoWriter_FFMPEG::open( const char * filename, int fourcc,
         break;
     default:
         // good for lossy formats, MPEG, etc.
-        codec_pix_fmt = AV_PIX_FMT_YUV420P;
+        codec_pix_fmt = enable_alpha ? AV_PIX_FMT_YUVA420P : AV_PIX_FMT_YUV420P;
         break;
     }
 

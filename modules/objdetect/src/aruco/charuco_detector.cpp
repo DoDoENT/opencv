@@ -4,7 +4,7 @@
 
 #include "../precomp.hpp"
 
-#include <opencv2/calib3d.hpp>
+#include <opencv2/geometry.hpp>
 #include <opencv2/core/utils/logger.hpp>
 #include "opencv2/objdetect/charuco_detector.hpp"
 #include "aruco_utils.hpp"
@@ -117,7 +117,7 @@ struct CharucoDetector::CharucoDetectorImpl {
                     minDist = min(dist, minDist);
                     counter++;
                 }
-                // if this is the first closest marker, dont do anything
+                // if this is the first closest marker, don't do anything
                 if(counter == 0)
                     continue;
                 else {
@@ -163,7 +163,7 @@ struct CharucoDetector::CharucoDetectorImpl {
             const int end = range.end;
             for (int i = begin; i < end; i++) {
                 vector<Point2f> in;
-                in.push_back(filteredChessboardImgPoints[i] - Point2f(0.5, 0.5)); // adjust sub-pixel coordinates for cornerSubPix
+                in.push_back(filteredChessboardImgPoints[i]);
                 Size winSize = filteredWinSizes[i];
                 if (winSize.height == -1 || winSize.width == -1)
                     winSize = Size(arucoDetector.getDetectorParameters().cornerRefinementWinSize,
@@ -172,7 +172,7 @@ struct CharucoDetector::CharucoDetectorImpl {
                              TermCriteria(TermCriteria::MAX_ITER | TermCriteria::EPS,
                                           arucoDetector.getDetectorParameters().cornerRefinementMaxIterations,
                                           arucoDetector.getDetectorParameters().cornerRefinementMinAccuracy));
-                filteredChessboardImgPoints[i] = in[0] + Point2f(0.5, 0.5);
+                filteredChessboardImgPoints[i] = in[0];
             }
         });
         // parse output
@@ -414,7 +414,12 @@ void CharucoDetector::detectDiamonds(InputArray image, OutputArrayOfArrays _diam
 
     // stores if the detected markers have been assigned or not to a diamond
     vector<bool> assigned(_markerIds.total(), false);
-    if(_markerIds.total() < 4ull) return; // a diamond need at least 4 markers
+    if(_markerIds.total() < 4ull)
+    {
+        if (_diamondCorners.needed()) _diamondCorners.release();
+        if (_diamondIds.needed()) _diamondIds.release();
+        return; // a diamond need at least 4 markers
+    }
 
     // convert input image to grey
     Mat grey;
@@ -424,15 +429,19 @@ void CharucoDetector::detectDiamonds(InputArray image, OutputArrayOfArrays _diam
         grey = image.getMat();
     auto board = getBoard();
 
+    unsigned int nmarkers = (unsigned int)_markerCorners.total();
+    std::vector<std::vector<Point2f>> markerCorners(nmarkers);
+    for(unsigned int i = 0; i < nmarkers; i++)
+        _markerCorners.getMat((int)i).copyTo(markerCorners[i]);
+
     // for each of the detected markers, try to find a diamond
     for(unsigned int i = 0; i < (unsigned int)_markerIds.total(); i++) {
         if(assigned[i]) continue;
 
         // calculate marker perimeter
         float perimeterSq = 0;
-        Mat corners = _markerCorners.getMat(i);
         for(int c = 0; c < 4; c++) {
-          Point2f edge = corners.at<Point2f>(c) - corners.at<Point2f>((c + 1) % 4);
+          Point2f edge = markerCorners[i][c] - markerCorners[i][(c + 1) % 4];
           perimeterSq += edge.x*edge.x + edge.y*edge.y;
         }
         // maximum reprojection error relative to perimeter
@@ -442,18 +451,18 @@ void CharucoDetector::detectDiamonds(InputArray image, OutputArrayOfArrays _diam
 
         // prepare data to call refineDetectedMarkers()
         // detected markers (only the current one)
-        vector<Mat> currentMarker;
+        vector<vector<Point2f> > currentMarker;
         vector<int> currentMarkerId;
-        currentMarker.push_back(_markerCorners.getMat(i));
+        currentMarker.push_back(markerCorners[i]);
         currentMarkerId.push_back(currentId);
 
         // marker candidates (the rest of markers if they have not been assigned)
-        vector<Mat> candidates;
+        vector<vector<Point2f> > candidates;
         vector<int> candidatesIdxs;
         for(unsigned int k = 0; k < assigned.size(); k++) {
             if(k == i) continue;
             if(!assigned[k]) {
-                candidates.push_back(_markerCorners.getMat(k));
+                candidates.push_back(markerCorners[k]);
                 candidatesIdxs.push_back(k);
             }
         }
@@ -518,15 +527,26 @@ void CharucoDetector::detectDiamonds(InputArray image, OutputArrayOfArrays _diam
 
     if(diamondIds.size() > 0ull) {
         // parse output
-        Mat(diamondIds).copyTo(_diamondIds);
+        if (_diamondIds.needed())
+        {
+            Mat(diamondIds).copyTo(_diamondIds);
+        }
 
-        _diamondCorners.create((int)diamondCorners.size(), 1, CV_32FC2);
-        for(unsigned int i = 0; i < diamondCorners.size(); i++) {
-            _diamondCorners.create(4, 1, CV_32FC2, i, true);
-            for(int j = 0; j < 4; j++) {
-                _diamondCorners.getMat(i).at<Point2f>(j) = diamondCorners[i][j];
+        if (_diamondCorners.needed())
+        {
+            _diamondCorners.create((int)diamondCorners.size(), 1, CV_32FC2);
+            for(unsigned int i = 0; i < diamondCorners.size(); i++) {
+                _diamondCorners.create(4, 1, CV_32FC2, i, true);
+                for(int j = 0; j < 4; j++) {
+                    _diamondCorners.getMat(i).at<Point2f>(j) = diamondCorners[i][j];
+                }
             }
         }
+    }
+    else
+    {
+        if (_diamondCorners.needed()) _diamondCorners.release();
+        if (_diamondIds.needed()) _diamondIds.release();
     }
 }
 

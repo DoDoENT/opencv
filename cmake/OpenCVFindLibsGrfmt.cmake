@@ -78,24 +78,17 @@ if(WITH_JPEG)
       set(JPEG_LIBRARIES jpeg)
       set(JPEG_FOUND TRUE)
     else()
-      include(FindJPEG)
+      find_package(JPEG)
     endif()
   endif()
 
   if(NOT JPEG_FOUND)
     ocv_clear_vars(JPEG_LIBRARY JPEG_INCLUDE_DIR)
 
-    if(NOT BUILD_JPEG_TURBO_DISABLE)
-      set(JPEG_LIBRARY libjpeg-turbo CACHE INTERNAL "")
-      set(JPEG_LIBRARIES ${JPEG_LIBRARY})
-      add_subdirectory("${OpenCV_SOURCE_DIR}/3rdparty/libjpeg-turbo")
-      set(JPEG_INCLUDE_DIR "${${JPEG_LIBRARY}_SOURCE_DIR}/src" CACHE INTERNAL "")
-    else()
-      set(JPEG_LIBRARY libjpeg CACHE INTERNAL "")
-      set(JPEG_LIBRARIES ${JPEG_LIBRARY})
-      add_subdirectory("${OpenCV_SOURCE_DIR}/3rdparty/libjpeg")
-      set(JPEG_INCLUDE_DIR "${${JPEG_LIBRARY}_SOURCE_DIR}" CACHE INTERNAL "")
-    endif()
+    set(JPEG_LIBRARY libjpeg-turbo CACHE INTERNAL "")
+    set(JPEG_LIBRARIES ${JPEG_LIBRARY})
+    add_subdirectory("${OpenCV_SOURCE_DIR}/3rdparty/libjpeg-turbo")
+    set(JPEG_INCLUDE_DIR "${${JPEG_LIBRARY}_SOURCE_DIR}/src" CACHE INTERNAL "")
     set(JPEG_INCLUDE_DIRS "${JPEG_INCLUDE_DIR}")
   endif()
 
@@ -333,7 +326,7 @@ if(NOT HAVE_SPNG AND WITH_PNG)
   if(BUILD_PNG)
     ocv_clear_vars(PNG_FOUND)
   else()
-    ocv_clear_internal_cache_vars(PNG_LIBRARY PNG_INCLUDE_DIR)
+    ocv_clear_internal_cache_vars(PNG_LIBRARY PNG_INCLUDE_DIR PNG_PNG_INCLUDE_DIR)
     find_package(PNG QUIET)
   endif()
 
@@ -348,6 +341,18 @@ if(NOT HAVE_SPNG AND WITH_PNG)
     ocv_parse_header_version(PNG "${PNG_INCLUDE_DIR}/png.h" PNG_LIBPNG_VER_STRING)
   endif()
 
+  if(BUILD_PNG)
+    # Downstream find_package(PNG) calls from transitive dependencies
+    # (included via include() in the same scope) may overwrite PNG_FOUND
+    # and related variables. PNG_LIBRARY is naturally protected by
+    # FindPNG's "if(NOT PNG_LIBRARY)" guard, but PNG_PNG_INCLUDE_DIR
+    # (searched via find_path without a guard) and its derived variables
+    # (PNG_INCLUDE_DIR, PNG_LIBRARIES, PNG_VERSION_STRING) are not.
+    # Lock PNG_PNG_INCLUDE_DIR so that find_path() respects the cached
+    # bundled path and skips the system search.
+    set(PNG_PNG_INCLUDE_DIR "${PNG_INCLUDE_DIR}" CACHE INTERNAL "PNG include dir (bundled)")
+  endif()
+
   set(HAVE_PNG YES)
 endif()
 
@@ -355,23 +360,13 @@ endif()
 # --- OpenEXR (optional) ---
 if(WITH_OPENEXR)
   ocv_clear_vars(HAVE_OPENEXR)
-  if(NOT BUILD_OPENEXR)
-    ocv_clear_internal_cache_vars(OPENEXR_INCLUDE_PATHS OPENEXR_LIBRARIES OPENEXR_ILMIMF_LIBRARY OPENEXR_VERSION)
-    include("${OpenCV_SOURCE_DIR}/cmake/OpenCVFindOpenEXR.cmake")
-  endif()
+  ocv_clear_internal_cache_vars(OPENEXR_INCLUDE_PATHS OPENEXR_LIBRARIES OPENEXR_ILMIMF_LIBRARY OPENEXR_VERSION)
+  include("${OpenCV_SOURCE_DIR}/cmake/OpenCVFindOpenEXR.cmake")
 
   if(OPENEXR_FOUND)
     set(HAVE_OPENEXR YES)
   else()
-    ocv_clear_vars(OPENEXR_INCLUDE_PATHS OPENEXR_LIBRARIES OPENEXR_ILMIMF_LIBRARY OPENEXR_VERSION)
-
-    set(OPENEXR_LIBRARIES IlmImf)
-    add_subdirectory("${OpenCV_SOURCE_DIR}/3rdparty/openexr")
-    if(OPENEXR_VERSION)  # check via TARGET doesn't work
-      set(BUILD_OPENEXR ON)
-      set(HAVE_OPENEXR YES)
-      set(BUILD_OPENEXR ON)
-    endif()
+    set(HAVE_OPENEXR NO)
   endif()
 endif()
 

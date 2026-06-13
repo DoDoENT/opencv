@@ -3,7 +3,6 @@
 import sys, re, os.path, errno, fnmatch
 import json
 import logging
-import codecs
 from shutil import copyfile
 from pprint import pformat
 from string import Template
@@ -124,6 +123,15 @@ def mkdir_p(path):
             pass
         else:
             raise
+
+def make_jname(m):
+    return "Cv"+m if (m[0] in "0123456789") else m
+
+def make_jmodule(m):
+    return "cv"+m if (m[0] in "0123456789") else m
+
+def make_namespace(ci):
+    return ('using namespace ' + ci.namespace.replace('.', '::') + ';') if ci.namespace and ci.namespace != 'cv' else ''
 
 T_JAVA_START_INHERITED = read_contents(os.path.join(SCRIPT_DIR, 'templates/java_class_inherited.prolog'))
 T_JAVA_START_ORPHAN = read_contents(os.path.join(SCRIPT_DIR, 'templates/java_class.prolog'))
@@ -281,6 +289,7 @@ class ClassInfo(GeneralInfo):
                 self.name = '%s_%s' % (prefix, self.name)
                 self.jname = '%s_%s' % (prefix, self.jname)
 
+        self.jname = make_jname(self.jname)
         self.base = ''
         if decl[1]:
             # FIXIT Use generator to find type properly instead of hacks below
@@ -365,6 +374,7 @@ class ClassInfo(GeneralInfo):
         return Template(self.j_code.getvalue() + "\n\n" +
                          self.jn_code.getvalue() + "\n}\n").substitute(
                             module = m,
+                            jmodule = make_jmodule(m),
                             name = self.name,
                             jname = self.jname,
                             jcleaner = "long nativeObjCopy = nativeObj;\n org.opencv.core.Mat.cleaner.register(this, () -> delete(nativeObjCopy));" if USE_CLEANERS else "",
@@ -426,6 +436,7 @@ class FuncInfo(GeneralInfo):
                 else:
                     self.jname = '%s_%s' % (prefix, self.jname)
 
+        self.jname = make_jname(self.jname)
         self.static = ["","static"][ "/S" in decl[2] ]
         self.ctype = re.sub(r"^CvTermCriteria", "TermCriteria", decl[1] or "")
         self.args = []
@@ -589,7 +600,7 @@ class JavaWrapperGenerator(object):
                 content = f.read()
                 if content == buf:
                     return
-        with codecs.open(path, "w", "utf-8") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write(buf)
         updated_files += 1
 
@@ -635,7 +646,8 @@ class JavaWrapperGenerator(object):
 
         logging.info("\n\n===== Generating... =====")
         moduleCppCode = StringIO()
-        package_path = os.path.join(output_java_path, module)
+        package_path = os.path.join(output_java_path, make_jmodule(module))
+        #print("package path: %s\n" % package_path)
         mkdir_p(package_path)
         for ci in sorted(self.classes.values(), key=lambda x: x.symbol_id):
             if ci.name == "Mat":
@@ -643,7 +655,7 @@ class JavaWrapperGenerator(object):
             ci.initCodeStreams(self.Module)
             self.gen_class(ci)
             classJavaCode = ci.generateJavaCode(self.module, self.Module)
-            self.save("%s/%s/%s.java" % (output_java_path, module, ci.jname), classJavaCode)
+            self.save("%s/%s.java" % (package_path, ci.jname), classJavaCode)
             moduleCppCode.write(ci.generateCppCode())
             ci.cleanupCodeStreams()
         cpp_file = os.path.abspath(os.path.join(output_jni_path, module + ".inl.hpp"))
@@ -1097,13 +1109,13 @@ class JavaWrapperGenerator(object):
             clazz = ci.jname
             cpp_code.write ( Template(
 """
-JNIEXPORT $rtype JNICALL Java_org_opencv_${module}_${clazz}_$fname ($argst);
+JNIEXPORT $rtype JNICALL Java_org_opencv_${jmodule}_${clazz}_$fname ($argst);
 
-JNIEXPORT $rtype JNICALL Java_org_opencv_${module}_${clazz}_$fname
+JNIEXPORT $rtype JNICALL Java_org_opencv_${jmodule}_${clazz}_$fname
   ($args)
 {
     ${namespace}
-    static const char method_name[] = "$module::$fname()";
+    static const char method_name[] = "$jmodule::$fname()";
     try {
         LOGD("%s", method_name);$prologue
         $retval$cvname($cvargs);$epilogue$ret
@@ -1118,6 +1130,7 @@ JNIEXPORT $rtype JNICALL Java_org_opencv_${module}_${clazz}_$fname
 """ ).substitute(
         rtype = rtype,
         module = self.module.replace('_', '_1'),
+        jmodule = make_jmodule(self.module.replace('_', '_1')),
         clazz = clazz.replace('_', '_1'),
         fname = (fi.jname + '_' + str(suffix_counter)).replace('_', '_1'),
         args  = ", ".join(["%s %s" % (type_dict[a.ctype].get("jni_type"), a.name) for a in jni_args]),
@@ -1129,7 +1142,7 @@ JNIEXPORT $rtype JNICALL Java_org_opencv_${module}_${clazz}_$fname
         cvargs = " " + ", ".join(cvargs) + " " if cvargs else "",
         default = "\n    " + default if default else "",
         retval = retval,
-        namespace = ('using namespace ' + ci.namespace.replace('.', '::') + ';') if ci.namespace and ci.namespace != 'cv' else ''
+        namespace = make_namespace(ci)
     ) )
 
             # adding method signature to dictionary
