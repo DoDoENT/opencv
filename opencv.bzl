@@ -214,15 +214,19 @@ ENABLED_OPTS = _calc_enabled_opts()
 # OpenCV modules that will be built
 # TODO: make this configurable via build flag
 MODULES_COMMON = [
-    "calib3d",
+    "calib",
     "core",
-    "features2d",
     "dnn",
+    "features",
     "flann",
+    "geometry",
     "imgcodecs",
     "imgproc",
     "objdetect",
     "photo",
+    "ptcloud",
+    "stereo",
+    "stitching",
     "video",
 ]
 
@@ -233,24 +237,26 @@ MODULES_DESKTOP = MODULES_COMMON + [
 
 CONFIG_BASE = {
     "stub_opencl": [
+        "calib",
         "core",
+        "geometry",
+        "features",
         "imgproc",
-        "features2d",
-        "calib3d",
         "objdetect",
         "photo",
+        "ptcloud",
+        "stereo",
+        "stitching",
         "video",
     ],
     "contains_src_headers": [
-        "imgproc",
-        "imgcodecs",
-        "features2d",
-        "calib3d",
-        "videoio",
         "dnn",
+        "geometry",
+        "imgcodecs",
+        "videoio",
     ],
     "contains_3rdparty": [
-        "features2d",
+        "features",
     ],
 }
 
@@ -334,7 +340,7 @@ def opencv_module(
         "@platforms//cpu:mips64": [],
         "@platforms//cpu:ppc64le": [],
         "@platforms//cpu:riscv64": [],
-        # "@platforms//cpu:loongarch64": [],
+        "@platforms//cpu:loongarch64": [],
         "//conditions:default": [],
     }
 
@@ -379,7 +385,7 @@ def opencv_module(
             "#define CV_CPU_DISPATCH_MODES_ALL BASELINE",
         ]
         for arch, dispatched_opts in dispatch_simd.items():
-            if len(dispatched_opts) > 0 and arch != "loongarch64": # loongarch64 currently not supported by bazel platforms
+            if len(dispatched_opts) > 0:
                 dispatch_modes_simd[arch] = [
                     "#define CV_CPU_DISPATCH_MODES_ALL " + ", ".join([x.upper() for x in reversed(dispatched_opts) + ["BASELINE"]]),
                 ]
@@ -450,8 +456,7 @@ def opencv_module(
 
         select_dict = {}
         for arch in simd_opts.keys():
-            if arch != "loongarch64": # loongarch64 currently not supported by bazel platforms
-                select_dict["@platforms//cpu:{}".format(arch)] = simd_definitions_start + simd_opts[arch] + dispatch_modes_simd[arch] + simd_definitions_end
+            select_dict["@platforms//cpu:{}".format(arch)] = simd_definitions_start + simd_opts[arch] + dispatch_modes_simd[arch] + simd_definitions_end
 
         select_dict["//conditions:default"] = simd_definitions_start + dispatch_modes_empty + simd_definitions_end
 
@@ -494,61 +499,60 @@ def opencv_module(
             prefix + "/src/**/*.{}.cpp".format(x)
             for x in opts["dispatched"]
         ]
-        if arch != "loongarch64": # loongarch64 currently not supported by bazel platforms
-            arch_flags = []
-            for opt in opts["baseline"]:
-                arch_flags += _KNOWN_OPTS[arch][opt]["copts"]
-                srcs_baseline_includes.append(prefix + "/src/**/*.{}.cpp".format(opt))
-            baseline_copts["@platforms//cpu:{}".format(arch)] = arch_flags
+        arch_flags = []
+        for opt in opts["baseline"]:
+            arch_flags += _KNOWN_OPTS[arch][opt]["copts"]
+            srcs_baseline_includes.append(prefix + "/src/**/*.{}.cpp".format(opt))
+        baseline_copts["@platforms//cpu:{}".format(arch)] = arch_flags
 
-            # some modules have hand-optimized version for specific dispatched optimization
-            # This will not be covered by the dispatched cc_library above, so we need to add additional target for it
+        # some modules have hand-optimized version for specific dispatched optimization
+        # This will not be covered by the dispatched cc_library above, so we need to add additional target for it
 
-            for opt in opts["dispatched"]:
-                simd_target_name = "_{}/src/{}_{}_{}_simd_handcrafted".format(prefix, name, arch, opt)
+        for opt in opts["dispatched"]:
+            simd_target_name = "_{}/src/{}_{}_{}_simd_handcrafted".format(prefix, name, arch, opt)
 
-                cc_library(
-                    name = simd_target_name,
-                    srcs = native.glob(
-                        [
-                            prefix + "/src/**/*.hpp",
-                            prefix + "/src/**/*.h",
-                            prefix + "/src/**/*.{}.cpp".format(opt)
-                        ],
-                        allow_empty = True
-                    ),
-                    hdrs = native.glob(glob_hdrs, allow_empty = True),
-                    deps = deps + [":_base_headers"],
-                    # note: some files don't include generated simd_declarations.hpp, so
-                    # we need to define CV_CPU_DISPATCH_MODE here as well
-                    # notable example: color_hsv operators in imgproc module
-                    # This workaround also exist in OpenCVCompilerOptimizations.cmake
-                    # in function ocv_compiler_optimization_process_sources
-                    local_defines = [
-                        "CV_CPU_DISPATCH_MODE={}".format(opt.upper()),
-                        "CV_CPU_COMPILE_{}=1".format(opt.upper()),
-                    ] + [
-                        "CV_CPU_COMPILE_{}=1".format(x.upper())
-                        for x in _KNOWN_OPTS[arch][opt]["implies"]
-                        if x not in ENABLED_OPTS[arch]["baseline"]
+            cc_library(
+                name = simd_target_name,
+                srcs = native.glob(
+                    [
+                        prefix + "/src/**/*.hpp",
+                        prefix + "/src/**/*.h",
+                        prefix + "/src/**/*.{}.cpp".format(opt)
                     ],
-                    implementation_deps = [":" + name + "_generated_simd_headers"],
-                    copts = OPENCV_COPTS + OPENCV_OPTIMIZATION_COPTS +
-                             copts +
-                            _KNOWN_OPTS[arch][opt]["copts"] +
-                             select({
-                                ":ubsan_enabled": [
-                                    "-fno-sanitize=alignment", # alignment sanitizer will catch these, but they are intentional in most SIMD code
-                                ],
-                                "//conditions:default": [],
-                            }),
-                    target_compatible_with = ["@platforms//cpu:{}".format(arch)],
-                    strip_include_prefix = prefix + "/include",
-                    features = [
-                        "exceptions", # enable exceptions for opencv modules
-                    ],
-                )
-                dispatched_targets["@platforms//cpu:{}".format(arch)].append(Label(":" + simd_target_name))
+                    allow_empty = True
+                ),
+                hdrs = native.glob(glob_hdrs, allow_empty = True),
+                deps = deps + [":_base_headers"],
+                # note: some files don't include generated simd_declarations.hpp, so
+                # we need to define CV_CPU_DISPATCH_MODE here as well
+                # notable example: color_hsv operators in imgproc module
+                # This workaround also exist in OpenCVCompilerOptimizations.cmake
+                # in function ocv_compiler_optimization_process_sources
+                local_defines = [
+                    "CV_CPU_DISPATCH_MODE={}".format(opt.upper()),
+                    "CV_CPU_COMPILE_{}=1".format(opt.upper()),
+                ] + [
+                    "CV_CPU_COMPILE_{}=1".format(x.upper())
+                    for x in _KNOWN_OPTS[arch][opt]["implies"]
+                    if x not in ENABLED_OPTS[arch]["baseline"]
+                ],
+                implementation_deps = [":" + name + "_generated_simd_headers"],
+                copts = OPENCV_COPTS + OPENCV_OPTIMIZATION_COPTS +
+                         copts +
+                        _KNOWN_OPTS[arch][opt]["copts"] +
+                         select({
+                            ":ubsan_enabled": [
+                                "-fno-sanitize=alignment", # alignment sanitizer will catch these, but they are intentional in most SIMD code
+                            ],
+                            "//conditions:default": [],
+                        }),
+                target_compatible_with = ["@platforms//cpu:{}".format(arch)],
+                strip_include_prefix = prefix + "/include",
+                features = [
+                    "exceptions", # enable exceptions for opencv modules
+                ],
+            )
+            dispatched_targets["@platforms//cpu:{}".format(arch)].append(Label(":" + simd_target_name))
 
     if sources != None:
         # used by videoio and highgui modules

@@ -36,7 +36,7 @@ exports_files([
 write_file(
     name = "_private/version_string.inc",
     out = "private/version_string.inc",
-    content = ["\"4.13.0\""],
+    content = ["\"5.0.0\""],
 )
 
 write_file(
@@ -173,7 +173,6 @@ expand_template(
         "#cmakedefine HAVE_D3D10\n": "/* #undef HAVE_D3D10 */\n",
         "#cmakedefine HAVE_D3D9\n": "/* #undef HAVE_D3D9 */\n",
         "#cmakedefine HAVE_GDAL\n": "/* #undef HAVE_GDAL */\n",
-        "#cmakedefine HAVE_HALIDE\n": "/* #undef HAVE_HALIDE */\n",
         "#cmakedefine HAVE_VULKAN\n": "/* #undef HAVE_VULKAN */\n",
         "#cmakedefine HAVE_INTTYPES_H 1\n": "/* #undef HAVE_INTTYPES_H */\n",
         "#cmakedefine HAVE_IPP\n": "/* #undef HAVE_IPP */\n",
@@ -209,9 +208,8 @@ expand_template(
         "#cmakedefine HAVE_VA_INTEL\n": "/* #undef HAVE_VA_INTEL */\n",
         "#cmakedefine HAVE_LAPACK\n": "/* #undef HAVE_LAPACK */\n",
         "#cmakedefine ENABLE_INSTRUMENTATION\n": "/* #undef ENABLE_INSTRUMENTATION */\n",
-        "#cmakedefine HAVE_OPENVX\n": "/* #undef HAVE_OPENVX */\n",
         "#cmakedefine OPENCV_TRACE\n": "/* #undef OPENCV_TRACE */\n",
-        "#cmakedefine HAVE_QUIRC\n": "/* undef HAVE_QUIRC */\n",
+        "#cmakedefine HAVE_UNIFONT\n": "/* undef HAVE_UNIFONT */\n",
     } | select({
         ":have_eigen": {
             "#cmakedefine HAVE_EIGEN\n": "#define HAVE_EIGEN 1\n",
@@ -265,6 +263,20 @@ cc_library(
         "@androidndk//:cpufeatures",
     ],
     target_compatible_with = ["@platforms//os:android"],
+)
+
+opencv_module(
+    name = "calib",
+    copts = [
+        "-Wno-deprecated-enum-float-conversion",
+    ],
+    deps = [
+        ":imgproc",
+        ":objdetect",
+        ":flann",
+        ":geometry",
+        ":stereo",
+    ],
 )
 
 opencv_module(
@@ -327,6 +339,18 @@ opencv_module(
             "avx2",
             "lasx",
         ],
+        "minmax": [
+            "sse2",
+            "sse4_1",
+            "avx2",
+            "vsx3",
+            "lasx",
+        ],
+        "nan_mask": [
+            "sse2",
+            "avx2",
+            "lasx",
+        ],
         "split": [
             "sse2",
             "avx2",
@@ -337,12 +361,25 @@ opencv_module(
             "avx2",
             "lasx",
         ],
+        "reduce": [
+            "sse2",
+            "ssse3",
+            "avx2",
+            "neon_dotprod",
+        ],
         "norm": [
             "sse2",
             "sse4_1",
             "avx",
             "avx2",
             "neon_dotprod",
+            "lasx",
+        ],
+        "transpose": [
+            "avx",
+            "avx2",
+            "neon",
+            "rvv",
             "lasx",
         ],
     },
@@ -396,90 +433,6 @@ opencv_module(
     }),
 )
 
-opencv_module(
-    name = "imgproc",
-    copts = [
-        "-Wno-deprecated-enum-float-conversion",
-        "-Wno-deprecated-volatile",
-    ],
-    dispatched_files = {
-        "accum": [
-            "sse4_1",
-            "avx",
-            "avx2",
-        ],
-        "bilateral_filter": [
-            "sse2",
-            "avx2",
-        ],
-        "box_filter": [
-            "sse2",
-            "sse4_1",
-            "avx2",
-        ],
-        "filter": [
-            "sse2",
-            "sse4_1",
-            "avx2",
-        ],
-        "color_hsv": [
-            "sse2",
-            "sse4_1",
-            "avx2",
-        ],
-        "color_rgb": [
-            "sse2",
-            "sse4_1",
-            "avx2",
-        ],
-        "color_yuv": [
-            "sse2",
-            "sse4_1",
-            "avx2",
-        ],
-        "median_blur": [
-            "sse2",
-            "sse4_1",
-            "avx2",
-        ],
-        "morph": [
-            "sse2",
-            "sse4_1",
-            "avx2",
-        ],
-        "smooth": [
-            "sse2",
-            "sse4_1",
-            "avx2",
-        ],
-        "sumpixels": [
-            "sse2",
-            "avx2",
-            "avx512_skx",
-        ],
-    },
-    deps = [":core"],
-)
-
-opencv_module(
-    name = "features2d",
-    copts = [
-        "-Wno-deprecated-enum-float-conversion",
-        "-Wno-deprecated-volatile",
-    ],
-    dispatched_files = {
-        "sift": [
-            "sse4_1",
-            "avx2",
-            "avx512_skx",
-        ],
-    },
-    deps = [
-        ":imgproc",
-        ":flann",
-    ],
-)
-
 proto_library(
     name = "dnn_tf_msgs_proto",
     srcs = glob([
@@ -493,18 +446,19 @@ cc_proto_library(
     deps = [ ":dnn_tf_msgs_proto" ],
 )
 
-proto_library(
-    name = "dnn_caffe_msgs_proto",
-    srcs = glob([
-        "modules/dnn/src/caffe/**/*.proto",
-    ]),
-    strip_import_prefix = "modules/dnn/src/caffe",
-)
-
-cc_proto_library(
-    name = "dnn_caffe_msgs",
-    deps = [ ":dnn_caffe_msgs_proto" ],
-)
+# no longer exists
+# proto_library(
+#     name = "dnn_caffe_msgs_proto",
+#     srcs = glob([
+#         "modules/dnn/src/caffe/**/*.proto",
+#     ]),
+#     strip_import_prefix = "modules/dnn/src/caffe",
+# )
+#
+# cc_proto_library(
+#     name = "dnn_caffe_msgs",
+#     deps = [ ":dnn_caffe_msgs_proto" ],
+# )
 
 proto_library(
     name = "dnn_onnx_msgs_proto",
@@ -524,6 +478,8 @@ opencv_module(
     copts = [
         "-Wno-deprecated-enum-float-conversion",
         "-Wno-deprecated-volatile",
+        "-ffast-math",
+        "-fno-finite-math-only",
     ],
     local_defines = [
         "HAVE_PROTOBUF=1",
@@ -531,6 +487,7 @@ opencv_module(
     srcs_excludes_globs = [
         "modules/dnn/src/ocl4dnn/**",
         "modules/dnn/src/cuda4dnn/**",
+        "modules/dnn/src/caffe/*.cpp",
     ],
     force_dispatch = True,
     dispatched_files = {
@@ -574,12 +531,84 @@ opencv_module(
             "neon",
             "lasx",
         ],
+        "layers/cpu_kernels/conv2_depthwise": [
+            "avx",
+            "avx2",
+            "neon",
+            "neon_fp16",
+        ],
+        "layers/cpu_kernels/conv2_kernels": [
+            "avx",
+            "avx2",
+            "neon",
+            "neon_fp16",
+        ],
+        "int8layers/conv2_int8_kernels": [
+            "avx2",
+        ],
+        "layers/cpu_kernels/activation_kernels": [
+            "avx",
+            "avx2",
+            "neon",
+            "neon_fp16",
+        ],
+        "layers/cpu_kernels/reduce2_kernels": [
+            "avx",
+            "avx2",
+            "neon",
+            "rvv",
+            "lasx",
+        ],
+        "layers/cpu_kernels/transpose_kernels": [
+            "avx",
+            "avx2",
+            "neon",
+            "rvv",
+            "lasx",
+        ],
+        "layers/cpu_kernels/gridsample_kernels": [
+            "avx",
+            "avx2",
+            "neon",
+            "rvv",
+            "lasx",
+        ],
+        "layers/cpu_kernels/nary_eltwise_kernels": [
+            "avx",
+            "avx2",
+            "neon",
+            "rvv",
+            "lasx",
+        ],
+    },
+    deps = [
+        ":core",
+        ":imgproc",
+        ":geometry",
+        # ":dnn_caffe_msgs",
+        ":dnn_onnx_msgs",
+        ":dnn_tf_msgs",
+    ],
+)
+
+opencv_module(
+    name = "features",
+    copts = [
+        "-Wno-deprecated-enum-float-conversion",
+        "-Wno-deprecated-volatile",
+    ],
+    dispatched_files = {
+        "sift": [
+            "sse4_1",
+            "avx2",
+            "avx512_skx",
+        ],
     },
     deps = [
         ":imgproc",
-        ":dnn_caffe_msgs",
-        ":dnn_onnx_msgs",
-        ":dnn_tf_msgs",
+        ":geometry",
+        ":flann",
+        ":dnn",
     ],
 )
 
@@ -589,21 +618,8 @@ opencv_module(
 )
 
 opencv_module(
-    name = "calib3d",
-    copts = [
-        "-Wno-deprecated-enum-float-conversion",
-    ],
-    dispatched_files = {
-        "undistort": [
-            "sse2",
-            "avx2",
-        ],
-    },
-    deps = [
-        ":imgproc",
-        ":features2d",
-        ":flann",
-    ],
+    name = "geometry",
+    deps = [":flann"]
 )
 
 opencv_module(
@@ -624,23 +640,158 @@ opencv_module(
 )
 
 opencv_module(
+    name = "imgproc",
+    copts = [
+        "-Wno-deprecated-enum-float-conversion",
+        "-Wno-deprecated-volatile",
+    ],
+    dispatched_files = {
+        "accum": [
+            "sse4_1",
+            "avx",
+            "avx2",
+        ],
+        "bilateral_filter": [
+            "sse2",
+            "avx2",
+            "avx512_skx",
+            # "avx512_icl", # fails with GCC, need to test clang
+        ],
+        "box_filter": [
+            "sse2",
+            "sse4_1",
+            "avx2",
+            "avx512_skx",
+        ],
+        "filter": [
+            "sse2",
+            "sse4_1",
+            "avx2",
+        ],
+        "color_hsv": [
+            "sse2",
+            "sse4_1",
+            "avx2",
+        ],
+        "color_rgb": [
+            "sse2",
+            "sse4_1",
+            "avx2",
+        ],
+        "color_yuv": [
+            "sse2",
+            "sse4_1",
+            "avx2",
+        ],
+        "median_blur": [
+            "sse2",
+            "sse4_1",
+            "avx2",
+            "avx512_skx",
+            "avx512_icl",
+        ],
+        "morph": [
+            "sse2",
+            "sse4_1",
+            "avx2",
+        ],
+        "smooth": [
+            "sse2",
+            "sse4_1",
+            "avx2",
+            "avx512_icl",
+        ],
+        "sumpixels": [
+            "sse2",
+            "avx2",
+            "avx512_skx",
+        ],
+        "warp_kernels": [
+            "sse2",
+            "sse4_1",
+            "avx2",
+            "neon",
+            "neon_fp16",
+            "rvv",
+            "lasx",
+        ],
+        "undistort": [
+            "sse2",
+            "avx2",
+        ],
+    },
+    deps = [
+        ":core",
+        ":geometry",
+    ],
+)
+
+opencv_module(
     name = "objdetect",
     deps = [
-        ":dnn",
-        ":calib3d",
-        ":imgproc",
         ":core",
+        ":imgproc",
+        ":features",
+        ":geometry",
+        ":dnn",
+    ],
+)
+
+opencv_module(
+    name = "photo",
+    deps = [
+        ":imgproc",
+        ":geometry",
+    ],
+)
+
+opencv_module(
+    name = "ptcloud",
+    deps = [
+        ":geometry",
+        ":imgproc",
+        ":flann",
+    ],
+)
+
+opencv_module(
+    name = "stereo",
+    deps = [
+        ":imgproc",
+        ":geometry",
+    ],
+)
+
+opencv_module(
+    name = "stitching",
+    deps = [
+        ":imgproc",
+        ":features",
+        ":geometry",
+        ":flann",
     ],
 )
 
 opencv_module(
     name = "video",
+    dispatched_files = {
+        "lkpyramid": [
+            "sse2",
+            "sse4_1",
+            "avx2",
+            "avx512_skx",
+            "avx512_icl",
+        ],
+    },
     deps = [
-        ":calib3d",
         ":imgproc",
+        ":geometry",
+        ":features",
         ":dnn",
     ],
 )
+
+### DESKTOP-ONLY MODULES BELOW ###
 
 # TODO: add build flags for enabling varoious video backends on different platforms
 objc_library(
@@ -694,14 +845,6 @@ objc_library(
 )
 
 opencv_module(
-    name = "photo",
-    deps = [
-        ":core",
-        ":imgproc",
-    ],
-)
-
-opencv_module(
     name = "videoio",
     deps = [
         ":imgproc",
@@ -720,7 +863,6 @@ opencv_module(
     }),
     sources = [
         "modules/videoio/src/videoio_registry.cpp",
-        "modules/videoio/src/videoio_c.cpp",
         "modules/videoio/src/cap.cpp",
         "modules/videoio/src/cap_images.cpp",
         "modules/videoio/src/cap_mjpeg_encoder.cpp",
@@ -759,7 +901,6 @@ objc_library(
         "modules/highgui/src/**/*.h",
         "modules/highgui/src/**/*.hpp",
         "modules/highgui/include/**/*.hpp",
-        "modules/highgui/include/**/*.h",
     ]),
     includes = [
         "modules/highgui/include",
