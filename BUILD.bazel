@@ -454,19 +454,18 @@ cc_proto_library(
     deps = [ ":dnn_tf_msgs_proto" ],
 )
 
-# no longer exists
-# proto_library(
-#     name = "dnn_caffe_msgs_proto",
-#     srcs = glob([
-#         "modules/dnn/src/caffe/**/*.proto",
-#     ]),
-#     strip_import_prefix = "modules/dnn/src/caffe",
-# )
-#
-# cc_proto_library(
-#     name = "dnn_caffe_msgs",
-#     deps = [ ":dnn_caffe_msgs_proto" ],
-# )
+proto_library(
+    name = "dnn_caffe_msgs_proto",
+    srcs = glob([
+        "modules/dnn/src/caffe/**/*.proto",
+    ]),
+    strip_import_prefix = "modules/dnn/src/caffe",
+)
+
+cc_proto_library(
+    name = "dnn_caffe_msgs",
+    deps = [ ":dnn_caffe_msgs_proto" ],
+)
 
 proto_library(
     name = "dnn_onnx_msgs_proto",
@@ -495,7 +494,6 @@ opencv_module(
     srcs_excludes_globs = [
         "modules/dnn/src/ocl4dnn/**",
         "modules/dnn/src/cuda4dnn/**",
-        "modules/dnn/src/caffe/*.cpp",
     ],
     force_dispatch = True,
     dispatched_files = {
@@ -593,7 +591,7 @@ opencv_module(
         ":core",
         ":imgproc",
         ":geometry",
-        # ":dnn_caffe_msgs",
+        ":dnn_caffe_msgs",
         ":dnn_onnx_msgs",
         ":dnn_tf_msgs",
     ],
@@ -685,7 +683,7 @@ opencv_module(
             "sse2",
             "avx2",
             "avx512_skx",
-            # "avx512_icl", # fails with GCC, need to test clang
+            "avx512_icl", # fails with GCC, need to test clang
         ],
         "box_filter": [
             "sse2",
