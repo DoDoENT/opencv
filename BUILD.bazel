@@ -8,6 +8,8 @@ load("@protobuf//bazel:proto_library.bzl", "proto_library")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("@rules_license//rules:license.bzl", "license")
+load("@rules_python//python:py_binary.bzl", "py_binary")
+load(":utils.bzl", "blob2hdr")
 
 load(
     "//:opencv.bzl",
@@ -32,6 +34,12 @@ license(
 exports_files([
     "LICENSE",
 ])
+
+py_binary(
+    name = "blob2hdr",
+    srcs = ["blob2hdr.py"],
+    visibility = ["//visibility:public"],
+)
 
 write_file(
     name = "_private/version_string.inc",
@@ -639,6 +647,28 @@ opencv_module(
     ],
 )
 
+blob2hdr(
+    name = "imgproc-builtin-font-sans",
+    src = "modules/imgproc/fonts/Rubik.ttf.gz",
+    out = "builtin_font_sans.h",
+    cpp_variable = "OcvBuiltinFontSans",
+)
+
+blob2hdr(
+    name = "imgproc-builtin-font-italic",
+    src = "modules/imgproc/fonts/Rubik-Italic.ttf.gz",
+    out = "builtin_font_italic.h",
+    cpp_variable = "OcvBuiltinFontItalic",
+)
+
+cc_library(
+    name = "imgproc_fonts",
+    hdrs = [
+        ":imgproc-builtin-font-sans",
+        ":imgproc-builtin-font-italic",
+    ],
+)
+
 opencv_module(
     name = "imgproc",
     copts = [
@@ -723,6 +753,7 @@ opencv_module(
     deps = [
         ":core",
         ":geometry",
+        ":imgproc_fonts",
     ],
 )
 
