@@ -96,7 +96,7 @@ _KNOWN_OPTS = {
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2", "avx_512f", "avx512_common", "avx512_skx"],
         },
         "avx512_icl": {
-            "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f", "-mavx512cd", "-mavx512bw", "-mavx512dq", "-mavx512vl", "-mavx512ifma", "-mavx512vbmi2", "-mavx512bitalg", "-mavx512vpopcntdq"],
+            "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f", "-mavx512cd", "-mavx512bw", "-mavx512dq", "-mavx512vl", "-mavx512ifma", "-mavx512vbmi", "-mavx512vbmi2", "-mavx512bitalg", "-mavx512vpopcntdq"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2", "avx_512f", "avx512_common", "avx512_skx"],
         },
     },
