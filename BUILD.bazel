@@ -439,6 +439,12 @@ opencv_module(
         ":have_eigen": ["@eigen"],
         "//conditions:default": [],
     }),
+    test_srcs_excludes_globs = [
+        # test dispatching not yet implemented with bazel
+        "modules/core/test/**/test_intrin*.cpp",
+        # including private source files from src, not yet implemented with bazel
+        "modules/core/test/test_logtag*.cpp",
+    ],
 )
 
 proto_library(
@@ -914,6 +920,7 @@ opencv_module(
         "@platforms//os:macos": ["@platforms//os:macos"],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
+    test_enabled = False, # missing main
 )
 
 objc_library(
@@ -1018,6 +1025,7 @@ opencv_module(
         "@platforms//os:macos": ["@platforms//os:macos"],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
+    test_enabled = False,
 )
 
 
