@@ -1020,6 +1020,7 @@ opencv_module(
     }),
 )
 
+
 ################ FLAGS and configuration settings ################
 
 
@@ -1084,4 +1085,34 @@ label_flag(
 cc_library(
     name = "gtk3_stub",
     target_compatible_with = ["@platforms//:incompatible"],
+)
+
+################ Test support ################
+
+write_file(
+    name = "_opencv_tests_config.hpp",
+    out = "opencv_tests_config.hpp",
+    content = [
+        "#define OPENCV_INSTALL_PREFIX \"bazel-bin\"\n",
+        "\n",
+        "#define OPENCV_TEST_DATA_INSTALL_PATH \"share/opencv5/testdata\"\n",
+    ],
+)
+
+cc_library(
+    name = "test_config",
+    hdrs = [":opencv_tests_config.hpp"],
+)
+
+opencv_module(
+    name = "ts",
+    test_enabled = False,
+    deps = [
+        ":test_config",
+        ":core",
+        ":imgproc",
+        ":imgcodecs",
+        ":videoio",
+        ":highgui",
+    ],
 )

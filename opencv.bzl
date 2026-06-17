@@ -1,5 +1,6 @@
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 OPENCV_COPTS = [
     "-D_USE_MATH_DEFINES",
@@ -284,6 +285,9 @@ def opencv_module(
         compatible_with = [],
         srcs_excludes_globs = [],
         sources = None,  # reserved for modules that list sources explicitly, such as videoio or highgui
+        test_enabled = True,
+        test_srcs_excludes_globs = [],
+        test_sources = None, # reserved for modules that list sources explicitly, such as videoio or highgui
     ):
     """
     Creates a Bazel rule for an OpenCV module.
@@ -585,3 +589,34 @@ def opencv_module(
         ],
         visibility = ["//visibility:public"],
     )
+
+    if test_enabled:
+        glob_test_srcs = [prefix + "/test/**/*.cpp", prefix + "/test/**/*.hpp"]
+
+        if sources != None:
+            # used by videoio and highgui modules
+            full_test_sources = test_sources
+        else:
+            full_test_sources = native.glob(glob_test_srcs, exclude = test_srcs_excludes_globs)
+
+        cc_test(
+            name = name + "_test",
+            srcs = full_test_sources,
+            deps = [
+                ":" + name,
+                ":ts",
+            ],
+            copts = OPENCV_COPTS +
+                    OPENCV_OPTIMIZATION_COPTS +
+                    copts +
+                    select(baseline_copts) +
+                    select({
+                        ":ubsan_enabled": [
+                            "-fno-sanitize=alignment", # alignment sanitizer will catch these, but they are intentional in most SIMD code (which may be included in baseline)
+                        ],
+                        "//conditions:default": [],
+                    }),
+            features = [
+                "exceptions", # enable exceptions for opencv modules
+            ],
+        )
