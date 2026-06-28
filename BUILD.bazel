@@ -268,7 +268,7 @@ cc_library(
     hdrs = ["3rdparty/cpufeatures/cpu-features.h"],
     strip_include_prefix = "3rdparty/cpufeatures",
     deps = [
-        "@androidndk//:cpufeatures",
+        "@cpu_features//:ndk_compat",
     ],
     target_compatible_with = ["@platforms//os:android"],
 )
