@@ -418,17 +418,6 @@ opencv_module(
             "HAVE_MEMALIGN=1",
         ],
         "//conditions:default": [ ],
-    }) + select({
-        ":ubsan_enabled": [
-            "CV_STRONG_ALIGNMENT=1",  # UBSan checks for strict alignment
-        ],
-        "//conditions:default": [],
-    }),
-    copts = select({
-        ":ubsan_enabled": [
-            "-fno-sanitize=function", # call to function cv::hal::sub32f via pointer of incorrect type
-        ],
-        "//conditions:default": [],
     }),
     deps = [
         "@zlib",
@@ -1064,13 +1053,6 @@ config_setting(
     ],
     values = {
         "features": "wasm_simd",
-    },
-)
-
-config_setting(
-    name = "ubsan_enabled",
-    values = {
-        "features": "ubsan",
     },
 )
 

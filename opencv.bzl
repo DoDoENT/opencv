@@ -438,17 +438,12 @@ def opencv_module(
                         implementation_deps = [":" + name + "_generated_headers"],
                         copts = OPENCV_COPTS + OPENCV_OPTIMIZATION_COPTS +
                                  copts +
-                                _KNOWN_OPTS[arch][opt]["copts"] +
-                                 select({
-                                    ":ubsan_enabled": [
-                                        "-fno-sanitize=alignment", # alignment sanitizer will catch these, but they are intentional in most SIMD code
-                                    ],
-                                    "//conditions:default": [],
-                                }),
+                                _KNOWN_OPTS[arch][opt]["copts"],
                         target_compatible_with = ["@platforms//cpu:{}".format(arch)],
                         strip_include_prefix = prefix + "/include",
                         features = [
                             "exceptions", # enable exceptions for opencv modules
+                            "-ubsan",     # disable UBSAN for opencv modules
                         ],
                     )
                     dispatched_targets["@platforms//cpu:{}".format(arch)].append(Label(":" + simd_target_name))
@@ -543,17 +538,12 @@ def opencv_module(
                 implementation_deps = [":" + name + "_generated_simd_headers"],
                 copts = OPENCV_COPTS + OPENCV_OPTIMIZATION_COPTS +
                          copts +
-                        _KNOWN_OPTS[arch][opt]["copts"] +
-                         select({
-                            ":ubsan_enabled": [
-                                "-fno-sanitize=alignment", # alignment sanitizer will catch these, but they are intentional in most SIMD code
-                            ],
-                            "//conditions:default": [],
-                        }),
+                        _KNOWN_OPTS[arch][opt]["copts"],
                 target_compatible_with = ["@platforms//cpu:{}".format(arch)],
                 strip_include_prefix = prefix + "/include",
                 features = [
                     "exceptions", # enable exceptions for opencv modules
+                    "-ubsan",     # disable UBSAN for opencv modules
                 ],
             )
             dispatched_targets["@platforms//cpu:{}".format(arch)].append(Label(":" + simd_target_name))
@@ -572,13 +562,7 @@ def opencv_module(
         copts = OPENCV_COPTS +
                 OPENCV_OPTIMIZATION_COPTS +
                 copts +
-                select(baseline_copts) +
-                select({
-                    ":ubsan_enabled": [
-                        "-fno-sanitize=alignment", # alignment sanitizer will catch these, but they are intentional in most SIMD code (which may be included in baseline)
-                    ],
-                    "//conditions:default": [],
-                }),
+                select(baseline_copts),
         implementation_deps = [":" + name + "_generated_simd_headers"],
         linkopts = linkopts,
         local_defines = local_defines,
@@ -586,6 +570,7 @@ def opencv_module(
         strip_include_prefix = prefix + "/include",
         features = [
             "exceptions", # enable exceptions for opencv modules
+            "-ubsan",     # disable UBSAN for opencv modules
         ],
         visibility = ["//visibility:public"],
     )
@@ -609,14 +594,9 @@ def opencv_module(
             copts = OPENCV_COPTS +
                     OPENCV_OPTIMIZATION_COPTS +
                     copts +
-                    select(baseline_copts) +
-                    select({
-                        ":ubsan_enabled": [
-                            "-fno-sanitize=alignment", # alignment sanitizer will catch these, but they are intentional in most SIMD code (which may be included in baseline)
-                        ],
-                        "//conditions:default": [],
-                    }),
+                    select(baseline_copts),
             features = [
                 "exceptions", # enable exceptions for opencv modules
+                "-ubsan",     # disable UBSAN for opencv modules
             ],
         )
