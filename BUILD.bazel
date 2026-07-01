@@ -631,12 +631,14 @@ opencv_module(
         "HAVE_IMGCODEC_HDR",
         "HAVE_IMGCODEC_SUNRASTER",
         "HAVE_IMGCODEC_GIF",
+        "HAVE_WEBP",
     ],
     deps = [
         ":imgproc",
         "@libjpeg_turbo//:jpeg",
         "@libpng",
         "@libtiff//:tiff",
+        "@libwebp",
     ],
 )
 
