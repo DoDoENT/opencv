@@ -1090,6 +1090,7 @@ opencv_module(
 bool_flag(
     name = "disable_allocator_stats",
     build_setting_default = True,
+    visibility = ["//visibility:public"],
 )
 
 config_setting(
@@ -1100,6 +1101,7 @@ config_setting(
 bool_flag(
     name = "with_eigen",
     build_setting_default = False,
+    visibility = ["//visibility:public"],
 )
 
 config_setting(
@@ -1125,6 +1127,7 @@ config_setting(
 bool_flag(
     name = "with_gtk3",
     build_setting_default = False,
+    visibility = ["//visibility:public"],
 )
 
 config_setting(
@@ -1146,6 +1149,7 @@ config_setting(
 label_flag(
     name = "gtk3",
     build_setting_default = ":gtk3_stub",
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
