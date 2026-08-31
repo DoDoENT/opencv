@@ -2,174 +2,235 @@ load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
-OPENCV_COPTS = [
-    "-D_USE_MATH_DEFINES",
-    "-D__OPENCV_BUILD=1",
-    "-D__STDC_CONSTANT_MACROS",
-    "-D__STDC_FORMAT_MACROS",
-    "-D__STDC_LIMIT_MACROS",
-]
+# Select MSVC-style flags for both cl.exe and clang-cl.exe. The compiler identifiers
+# are provided by rules_cc and come from the selected C++ toolchain.
+def _compiler_copts(copts, cl_copts):
+    return select({
+        "@rules_cc//cc/compiler:clang-cl": cl_copts,
+        "@rules_cc//cc/compiler:msvc-cl": cl_copts,
+        "//conditions:default": copts,
+    })
+
+OPENCV_COPTS = _compiler_copts(
+    copts = [
+        "-D_USE_MATH_DEFINES",
+        "-D__OPENCV_BUILD=1",
+        "-D__STDC_CONSTANT_MACROS",
+        "-D__STDC_FORMAT_MACROS",
+        "-D__STDC_LIMIT_MACROS",
+    ],
+    cl_copts = [
+        "/D_USE_MATH_DEFINES",
+        "/D__OPENCV_BUILD=1",
+        "/D__STDC_CONSTANT_MACROS",
+        "/D__STDC_FORMAT_MACROS",
+        "/D__STDC_LIMIT_MACROS",
+    ],
+)
 
 OPENCV_OPTIMIZATION_COPTS = select({
+    "//:debug_clang_cl_build": [],
+    "//:debug_msvc_cl_build": [],
+    "@rules_cc//cc/compiler:clang-cl": [
+        "/O1",
+    ],
+    "@rules_cc//cc/compiler:msvc-cl": [
+        "/O1",
+    ],
     "//:debug_build": [],
     "//conditions:default": [
         "-Os",
-    ]
+    ],
 })
 
 # NOTE: The copts here are compatible with GCC and Clang, except for PPCLE64 which are clang-specific.
+# cl_copts contains the corresponding options for compilers with an MSVC-compatible command line.
 # This is based on OpenCVCompilerOptimizations.cmake
-# TODO: Add support for MSVC and ICC.
+# TODO: Add support for ICC.
 
 # NOTE: Starlark does not support while loops nor recursion, sw we have to manually compute full "implies" and "copts"
 _KNOWN_OPTS = {
     "x86_64": {
         "sse": {
             "copts": ["-msse"],
+            "cl_copts": [],
             "implies": [],
         },
         "sse2": {
             "copts": ["-msse", "-msse2"],
+            "cl_copts": [],
             "implies": ["sse"],
         },
         "sse3": {
             "copts": ["-msse", "-msse2", "-msse3"],
+            "cl_copts": [],
             "implies": ["sse", "sse2"],
         },
         "ssse3": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3"],
+            "cl_copts": [],
             "implies": ["sse", "sse2", "sse3"],
         },
         "sse4_1": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1"],
+            "cl_copts": [],
             "implies": ["sse", "sse2", "sse3", "ssse3"],
         },
         "popcnt": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt"],
+            "cl_copts": [],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1"],
         },
         "sse4_2": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2"],
+            "cl_copts": [],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt"],
         },
         "avx": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mavx"],
+            "cl_copts": ["/arch:AVX"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2"],
         },
         "fp16": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mavx"],
+            "cl_copts": ["/arch:AVX"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx"],
         },
         "fma3": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mfma", "-mavx"],
+            "cl_copts": ["/arch:AVX"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx"],
         },
         "avx2": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2"],
+            "cl_copts": ["/arch:AVX2"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16"],
         },
         "avx_512f": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f"],
+            "cl_copts": ["/arch:AVX512"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2"],
         },
         "avx512_common": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f", "-mavx512cd"],
+            "cl_copts": ["/arch:AVX512"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2", "avx_512f"],
         },
         "avx512_knl": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f", "-mavx512cd", "-mavx512er", "-mavx512pf"],
+            "cl_copts": ["/arch:AVX512"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2", "avx_512f", "avx512_common"],
         },
         "avx512_knm": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f", "-mavx512cd", "-mavx512er", "-mavx512pf", "-mavx5124fmaps", "-mavx5124vnniw", "-mavx512vpopcntdq"],
+            "cl_copts": ["/arch:AVX512"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2", "avx_512f", "avx512_common", "avx512_knl"],
         },
         "avx512_skx": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f", "-mavx512cd", "-mavx512bw", "-mavx512dq", "-mavx512vl"],
+            "cl_copts": ["/arch:AVX512"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2", "avx_512f", "avx512_common"],
         },
         "avx512_cnl": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f", "-mavx512cd", "-mavx512bw", "-mavx512dq", "-mavx512vl", "-mavx512ifma", "-mavx512vbmi"],
+            "cl_copts": ["/arch:AVX512"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2", "avx_512f", "avx512_common", "avx512_skx"],
         },
         "avx512_clx": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f", "-mavx512cd", "-mavx512bw", "-mavx512dq", "-mavx512vl", "-mavx512vnni"],
+            "cl_copts": ["/arch:AVX512"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2", "avx_512f", "avx512_common", "avx512_skx"],
         },
         "avx512_icl": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f", "-mavx512cd", "-mavx512bw", "-mavx512dq", "-mavx512vl", "-mavx512ifma", "-mavx512vbmi", "-mavx512vbmi2", "-mavx512bitalg", "-mavx512vpopcntdq"],
+            "cl_copts": ["/arch:AVX512"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2", "avx_512f", "avx512_common", "avx512_skx"],
         },
     },
     "armv7": {
         "vfpv3": {
             "copts": ["-mfpu=vfpv3"],
+            "cl_copts": [],
             "implies": [],
         },
         "neon": {
             "copts": ["-mfpu=neon"],
+            "cl_copts": [],
             "implies": [],
         },
         "fp16": {
             "copts": ["-mfpu=neon-fp16", "-mfp16-format=ieee"],
+            "cl_copts": [],
             "implies": ["neon"],
         },
     },
     "arm64": {
         "neon": {
             "copts": [],
+            "cl_copts": [],
             "implies": [],
         },
         "fp16": {
             "copts": [],
+            "cl_copts": [],
             "implies": ["neon"],
         },
         "neon_dotprod": {
             "copts": ["-march=armv8.2-a+dotprod"],
+            "cl_copts": [],
             "implies": ["neon"],
         },
         "neon_fp16": {
             "copts": ["-march=armv8.2-a+fp16"],
+            "cl_copts": [],
             "implies": ["neon"],
         },
         "neon_bf16": {
             "copts": ["-march=armv8.2-a+bf16"],
+            "cl_copts": [],
             "implies": ["neon"],
         },
         "sve": {
             "copts": ["-march=armv8.2-a+sve"],
+            "cl_copts": [],
             "implies": [],
         }
     },
     "mips64": {
         "msa": {
             "copts": ["-mmsa"],
+            "cl_copts": [],
             "implies": [],
         },
     },
     "ppc64le": {
         "vsx": {
             "copts": ["-mvsx", "-maltivec"],
+            "cl_copts": [],
             "implies": [],
         },
         "vsx3": {
             "copts": ["-mvsx", "-maltivec", "-mpower9-vector"],
+            "cl_copts": [],
             "implies": ["vsx"],
         },
     },
     "riscv64": {
         "rvv": {
             "copts": [],
+            "cl_copts": [],
             "implies": [],
         },
     },
     "loongarch64": {
         "lsx": {
             "copts": ["-mlsx"],
+            "cl_copts": [],
             "implies": [],
         },
         "lasx": {
             "copts": ["-mlasx"],
+            "cl_copts": [],
             "implies": [],
         },
     },
@@ -280,6 +341,7 @@ def opencv_module(
         force_dispatch = False,
         deps = [],
         copts = [],
+        cl_copts = [],
         linkopts = [],
         local_defines = [],
         compatible_with = [],
@@ -297,7 +359,8 @@ def opencv_module(
         dispatched_files: A mapping of keys to a list of operators.
         force_dispatch: If enabled, all optimizations for the files in dispatched_files will be forced to be dispatched, even if they are included in baseline.
         deps: A list of dependencies for the module.
-        copts: Additional compiler options.
+        copts: Additional compiler options for GCC-compatible command lines.
+        cl_copts: Additional compiler options for MSVC-compatible command lines.
         linkopts: Additional linker options.
         local_defines: A list of preprocessor definitions to be added to the module.
         compatible_with: A list of labels that specify the platforms compatible with this module.
@@ -436,9 +499,12 @@ def opencv_module(
                             if x not in ENABLED_OPTS[arch]["baseline"]
                         ],
                         implementation_deps = [":" + name + "_generated_headers"],
-                        copts = OPENCV_COPTS + OPENCV_OPTIMIZATION_COPTS +
-                                 copts +
-                                _KNOWN_OPTS[arch][opt]["copts"],
+                        copts = OPENCV_COPTS +
+                                OPENCV_OPTIMIZATION_COPTS +
+                                _compiler_copts(
+                                    copts + _KNOWN_OPTS[arch][opt]["copts"],
+                                    cl_copts + _KNOWN_OPTS[arch][opt]["cl_copts"],
+                                ),
                         target_compatible_with = ["@platforms//cpu:{}".format(arch)],
                         strip_include_prefix = prefix + "/include",
                         features = [
@@ -499,10 +565,15 @@ def opencv_module(
             for x in opts["dispatched"]
         ]
         arch_flags = []
+        arch_cl_flags = []
         for opt in opts["baseline"]:
             arch_flags += _KNOWN_OPTS[arch][opt]["copts"]
+            arch_cl_flags += _KNOWN_OPTS[arch][opt]["cl_copts"]
             srcs_baseline_includes.append(prefix + "/src/**/*.{}.cpp".format(opt))
         baseline_copts["@platforms//cpu:{}".format(arch)] = arch_flags
+        if arch in ["x86_64", "armv7"]:
+            baseline_copts["//:{}_clang_cl".format(arch)] = arch_cl_flags
+            baseline_copts["//:{}_msvc_cl".format(arch)] = arch_cl_flags
 
         # some modules have hand-optimized version for specific dispatched optimization
         # This will not be covered by the dispatched cc_library above, so we need to add additional target for it
@@ -536,9 +607,12 @@ def opencv_module(
                     if x not in ENABLED_OPTS[arch]["baseline"]
                 ],
                 implementation_deps = [":" + name + "_generated_simd_headers"],
-                copts = OPENCV_COPTS + OPENCV_OPTIMIZATION_COPTS +
-                         copts +
-                        _KNOWN_OPTS[arch][opt]["copts"],
+                copts = OPENCV_COPTS +
+                        OPENCV_OPTIMIZATION_COPTS +
+                        _compiler_copts(
+                            copts + _KNOWN_OPTS[arch][opt]["copts"],
+                            cl_copts + _KNOWN_OPTS[arch][opt]["cl_copts"],
+                        ),
                 target_compatible_with = ["@platforms//cpu:{}".format(arch)],
                 strip_include_prefix = prefix + "/include",
                 features = [
@@ -561,7 +635,7 @@ def opencv_module(
         deps = deps + [":_base_headers"] + select(dispatched_targets),
         copts = OPENCV_COPTS +
                 OPENCV_OPTIMIZATION_COPTS +
-                copts +
+                _compiler_copts(copts, cl_copts) +
                 select(baseline_copts),
         implementation_deps = [":" + name + "_generated_simd_headers"],
         linkopts = linkopts,
@@ -593,7 +667,7 @@ def opencv_module(
             ],
             copts = OPENCV_COPTS +
                     OPENCV_OPTIMIZATION_COPTS +
-                    copts +
+                    _compiler_copts(copts, cl_copts) +
                     select(baseline_copts),
             features = [
                 "exceptions", # enable exceptions for opencv modules
