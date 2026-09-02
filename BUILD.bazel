@@ -405,6 +405,7 @@ opencv_module(
     },
     linkopts = select({
         "@platforms//os:linux": ["-ldl", "-lpthread", "-lrt"],
+        "@platforms//os:windows": ["ole32.lib"],
         "//conditions:default": [],
     }),
     local_defines = select({
@@ -904,6 +905,13 @@ opencv_module(
         "@platforms//os:windows": ["HAVE_DSHOW=1"],
         "//conditions:default": [],
     }),
+    linkopts = select({
+        "@platforms//os:windows": [
+            "ole32.lib",
+            "oleaut32.lib",
+        ],
+        "//conditions:default": [],
+    }),
     sources = [
         "modules/videoio/src/videoio_registry.cpp",
         "modules/videoio/src/cap.cpp",
@@ -1087,6 +1095,8 @@ opencv_module(
         "@platforms//os:windows": [
             "user32.lib",
             "gdi32.lib",
+            "comdlg32.lib",
+            "advapi32.lib",
         ],
         "//conditions:default": [],
     }),
