@@ -840,6 +840,7 @@ opencv_module(
 # TODO: add build flags for enabling varoious video backends on different platforms
 objc_library(
     name = "ocv.3rdparty.avfoundation",
+    features = ["-thin_lto"],
     srcs = select({
         "@platforms//os:macos": [
             "modules/videoio/src/cap_avfoundation_mac.mm",
@@ -861,6 +862,7 @@ objc_library(
     ],
     copts = OPENCV_COPTS + OPENCV_OPTIMIZATION_COPTS + [
         "-fno-objc-arc",  # Disable Automatic Reference Counting, as OpenCV uses manual reference counting
+        "-fno-lto",
     ],
     linkopts = select({
         "@platforms//os:macos": [
@@ -941,6 +943,7 @@ opencv_module(
 
 objc_library(
     name = "ocv.3rdparty.cocoa",
+    features = ["-thin_lto"],
     srcs = [
         "opencv_highgui_config.hpp",
     ] + select({
@@ -960,6 +963,7 @@ objc_library(
     ],
     copts = OPENCV_COPTS + OPENCV_OPTIMIZATION_COPTS + [
         "-fno-objc-arc",  # Disable Automatic Reference Counting, as OpenCV uses manual reference counting
+        "-fno-lto",
     ],
     linkopts = select({
         "@platforms//os:macos": [
