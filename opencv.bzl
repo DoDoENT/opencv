@@ -148,11 +148,6 @@ _KNOWN_OPTS = {
         },
     },
     "armv7": {
-        "vfpv3": {
-            "copts": ["-mfpu=vfpv3"],
-            "cl_copts": [],
-            "implies": [],
-        },
         "neon": {
             "copts": ["-mfpu=neon"],
             "cl_copts": [],
