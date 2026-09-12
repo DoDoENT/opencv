@@ -118,12 +118,12 @@ write_file(
             "// OpenCV supported CPU dispathed features\n",
         ] + [
             "#define CV_CPU_DISPATCH_COMPILE_{} 1".format(arch.upper())
-            for arch in config.get("dispatch", [])
+            for arch in config.get("dispatched", [])
         ] + [
             "\n#define CV_CPU_DISPATCH_FEATURES 0 \\",
         ] + [
             "    , CV_CPU_{} \\".format(arch.upper())
-            for arch in config.get("dispatch", [])
+            for arch in config.get("dispatched", [])
         ] + [
             "\n",
         ],
