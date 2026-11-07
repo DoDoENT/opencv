@@ -45,7 +45,7 @@ py_binary(
 write_file(
     name = "_private/version_string.inc",
     out = "private/version_string.inc",
-    content = ["\"5.0.0\""],
+    content = ["\"5.1.0\""],
 )
 
 # Without dnn, HAVE_OPENCV_DNN is not defined, so the dnn-backed parts of
