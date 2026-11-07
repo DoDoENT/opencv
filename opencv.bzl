@@ -106,6 +106,11 @@ _KNOWN_OPTS = {
             "cl_copts": ["/arch:AVX2"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16"],
         },
+        "avx_vnni": {
+            "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavxvnni"],
+            "cl_copts": ["/arch:AVX2"],
+            "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2"],
+        },
         "avx_512f": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f"],
             "cl_copts": ["/arch:AVX512"],
@@ -281,13 +286,13 @@ MODULES_COMMON = [
     "imgproc",
     "objdetect",
     "photo",
-    "ptcloud",
     "stereo",
     "stitching",
     "video",
 ]
 
 MODULES_DESKTOP = MODULES_COMMON + [
+    "ptcloud",
     "videoio",
     "highgui",
 ]

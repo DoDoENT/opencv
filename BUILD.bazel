@@ -191,6 +191,7 @@ expand_template(
         "#cmakedefine HAVE_CLP": "/* #undef HAVE_CLP */",
         "#cmakedefine HAVE_CUDA": "/* #undef HAVE_CUDA */",
         "#cmakedefine HAVE_CUBLAS": "/* #undef HAVE_CUBLAS */",
+        "#cmakedefine HAVE_CUDNNJIT": "/* #undef HAVE_CUDNNJIT */",
         "#cmakedefine HAVE_CUDNN": "/* #undef HAVE_CUDNN */",
         "#cmakedefine HAVE_CUFFT": "/* #undef HAVE_CUFFT */",
         "#cmakedefine HAVE_DIRECTX_NV12": "/* #undef HAVE_DIRECTX_NV12 */",
@@ -224,6 +225,7 @@ expand_template(
         "#cmakedefine HAVE_OPENGL": "/* #undef HAVE_OPENGL */",
         "#cmakedefine HAVE_PNG": "#define HAVE_PNG 1",
         "#cmakedefine HAVE_SPNG": "/* #undef HAVE_SPNG */",
+        "#cmakedefine HAVE_HARFBUZZ": "/* #undef HAVE_HARFBUZZ */",
         "#cmakedefine HAVE_TBB": "/* #undef HAVE_TBB */",
         "#cmakedefine HAVE_HPX": "/* #undef HAVE_HPX */",
         "#cmakedefine HAVE_TIFF": "#define HAVE_TIFF 1",
@@ -234,6 +236,7 @@ expand_template(
         "#cmakedefine ENABLE_INSTRUMENTATION": "/* #undef ENABLE_INSTRUMENTATION */",
         "#cmakedefine OPENCV_TRACE": "/* #undef OPENCV_TRACE */",
         "#cmakedefine HAVE_UNIFONT": "/* undef HAVE_UNIFONT */",
+        "#cmakedefine HAVE_ITALICFONT": "#define HAVE_ITALICFONT 1",
     } | select({
         "@platforms//os:windows": {
             "#cmakedefine HAVE_PTHREADS_PF": "/* #undef HAVE_PTHREADS_PF */",
@@ -325,12 +328,23 @@ opencv_module(
         "stat": [
             "sse4_2",
             "avx2",
+            "avx512_skx",
+            "avx512_icl",
             "lasx",
         ],
         "arithm": [
             "sse2",
             "sse4_1",
             "avx2",
+            "neon_fp16",
+            "vsx3",
+            "lasx",
+        ],
+        "math": [
+            "sse2",
+            "sse4_1",
+            "avx2",
+            "neon_fp16",
             "vsx3",
             "lasx",
         ],
@@ -348,6 +362,8 @@ opencv_module(
         "count_non_zero": [
             "sse2",
             "avx2",
+            "avx512_skx",
+            "avx512_icl",
             "lasx",
         ],
         "has_non_zero": [
@@ -366,6 +382,8 @@ opencv_module(
         "mean": [
             "sse2",
             "avx2",
+            "avx512_skx",
+            "avx512_icl",
             "lasx",
         ],
         "merge": [
@@ -377,6 +395,8 @@ opencv_module(
             "sse2",
             "sse4_1",
             "avx2",
+            "avx512_skx",
+            "avx512_icl",
             "vsx3",
             "lasx",
         ],
@@ -393,6 +413,8 @@ opencv_module(
         "sum": [
             "sse2",
             "avx2",
+            "avx512_skx",
+            "avx512_icl",
             "lasx",
         ],
         "reduce": [
@@ -400,14 +422,20 @@ opencv_module(
             "ssse3",
             "avx2",
             "neon_dotprod",
+            "rvv",
         ],
         "norm": [
             "sse2",
             "sse4_1",
             "avx",
             "avx2",
+            "avx512_skx",
+            "avx512_icl",
             "neon_dotprod",
             "lasx",
+        ],
+        "lut": [
+            "avx512_icl",
         ],
         "transpose": [
             "avx",
@@ -415,6 +443,12 @@ opencv_module(
             "neon",
             "rvv",
             "lasx",
+        ],
+        "dxt": [
+            "sse2",
+            "avx2",
+            "avx512_icl",
+            "rvv",
         ],
     },
     linkopts = select({
@@ -461,32 +495,6 @@ opencv_module(
         # including private source files from src, not yet implemented with bazel
         "modules/core/test/test_logtag*.cpp",
     ],
-)
-
-proto_library(
-    name = "dnn_tf_msgs_proto",
-    srcs = glob([
-        "modules/dnn/src/tensorflow/**/*.proto",
-    ]),
-    strip_import_prefix = "modules/dnn/src/tensorflow",
-)
-
-cc_proto_library(
-    name = "dnn_tf_msgs",
-    deps = [ ":dnn_tf_msgs_proto" ],
-)
-
-proto_library(
-    name = "dnn_caffe_msgs_proto",
-    srcs = glob([
-        "modules/dnn/src/caffe/**/*.proto",
-    ]),
-    strip_import_prefix = "modules/dnn/src/caffe",
-)
-
-cc_proto_library(
-    name = "dnn_caffe_msgs",
-    deps = [ ":dnn_caffe_msgs_proto" ],
 )
 
 proto_library(
@@ -555,12 +563,14 @@ opencv_module(
             "avx2",
             "neon",
             "neon_fp16",
+            "rvv",
         ],
         "layers/cpu_kernels/fast_gemm_kernels": [
             "avx",
             "avx2",
             "neon",
             "lasx",
+            "rvv",
         ],
         "layers/cpu_kernels/conv2_depthwise": [
             "avx",
@@ -574,8 +584,22 @@ opencv_module(
             "neon",
             "neon_fp16",
         ],
+        "layers/cpu_kernels/conv2_deconv": [
+            "avx",
+            "avx2",
+            "neon",
+        ],
         "int8layers/conv2_int8_kernels": [
             "avx2",
+            "rvv",
+            "avx_vnni",
+            "avx512_clx",
+        ],
+        "int8layers/matmul_int8_kernels": [
+            "avx2",
+            "avx_vnni",
+            "avx512_clx",
+            "neon_dotprod",
         ],
         "layers/cpu_kernels/activation_kernels": [
             "avx",
@@ -583,28 +607,7 @@ opencv_module(
             "neon",
             "neon_fp16",
         ],
-        "layers/cpu_kernels/reduce2_kernels": [
-            "avx",
-            "avx2",
-            "neon",
-            "rvv",
-            "lasx",
-        ],
-        "layers/cpu_kernels/transpose_kernels": [
-            "avx",
-            "avx2",
-            "neon",
-            "rvv",
-            "lasx",
-        ],
         "layers/cpu_kernels/gridsample_kernels": [
-            "avx",
-            "avx2",
-            "neon",
-            "rvv",
-            "lasx",
-        ],
-        "layers/cpu_kernels/nary_eltwise_kernels": [
             "avx",
             "avx2",
             "neon",
@@ -615,10 +618,9 @@ opencv_module(
     deps = [
         ":core",
         ":imgproc",
+        ":imgcodecs",
         ":geometry",
-        ":dnn_caffe_msgs",
         ":dnn_onnx_msgs",
-        ":dnn_tf_msgs",
     ],
 )
 
@@ -728,16 +730,22 @@ opencv_module(
             "sse2",
             "sse4_1",
             "avx2",
+            "avx512_skx",
+            "avx512_icl",
         ],
         "color_rgb": [
             "sse2",
             "sse4_1",
             "avx2",
+            "avx512_skx",
+            "avx512_icl",
         ],
         "color_yuv": [
             "sse2",
             "sse4_1",
             "avx2",
+            "avx512_skx",
+            "avx512_icl",
         ],
         "median_blur": [
             "sse2",
@@ -775,6 +783,9 @@ opencv_module(
             "sse2",
             "avx2",
         ],
+        "equalize_hist": [
+            "avx512_icl",
+        ],
     },
     deps = [
         ":core",
@@ -807,6 +818,9 @@ opencv_module(
         ":geometry",
         ":imgproc",
         ":flann",
+        ":features",
+        ":video",
+        ":highgui",
     ],
 )
 
