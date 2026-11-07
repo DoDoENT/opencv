@@ -48,13 +48,26 @@ write_file(
     content = ["\"5.0.0\""],
 )
 
+# Without dnn, HAVE_OPENCV_DNN is not defined, so the dnn-backed parts of
+# objdetect, features and video compile out, as with -DBUILD_opencv_dnn=OFF.
+_HAVE_OPENCV_DNN = select({
+    ":have_dnn": ["#define HAVE_OPENCV_DNN\n"],
+    "//conditions:default": [],
+})
+
+_DNN_DEPS = select({
+    ":have_dnn": [":dnn"],
+    "//conditions:default": [],
+})
+
 write_file(
     name = "_opencv2/opencv_modules_desktop.hpp",
     out = "opencv2/opencv_modules_desktop.hpp",
     content = ["".join([
         "#define HAVE_OPENCV_{}\n".format(x.upper())
         for x in CONFIG_DESKTOP["modules"]
-    ])],
+        if x != "dnn"
+    ])] + _HAVE_OPENCV_DNN,
 )
 
 write_file(
@@ -63,7 +76,8 @@ write_file(
     content = ["".join([
         "#define HAVE_OPENCV_{}\n".format(x.upper())
         for x in CONFIG_NON_DESKTOP["modules"]
-    ])],
+        if x != "dnn"
+    ])] + _HAVE_OPENCV_DNN,
 )
 
 copy_file(
@@ -626,8 +640,7 @@ opencv_module(
         ":imgproc",
         ":geometry",
         ":flann",
-        ":dnn",
-    ],
+    ] + _DNN_DEPS,
 )
 
 opencv_module(
@@ -777,8 +790,7 @@ opencv_module(
         ":imgproc",
         ":features",
         ":geometry",
-        ":dnn",
-    ],
+    ] + _DNN_DEPS,
 )
 
 opencv_module(
@@ -831,8 +843,7 @@ opencv_module(
         ":imgproc",
         ":geometry",
         ":features",
-        ":dnn",
-    ],
+    ] + _DNN_DEPS,
 )
 
 ### DESKTOP-ONLY MODULES BELOW ###
@@ -1149,6 +1160,20 @@ bool_flag(
 config_setting(
     name = "have_eigen",
     flag_values = {":with_eigen": "True"},
+)
+
+# Mirrors CMake's BUILD_opencv_dnn. When False, objdetect, features and video
+# do not depend on :dnn, and HAVE_OPENCV_DNN is not defined. :dnn itself still
+# builds for a target that depends on it directly.
+bool_flag(
+    name = "with_dnn",
+    build_setting_default = True,
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "have_dnn",
+    flag_values = {":with_dnn": "True"},
 )
 
 config_setting(
