@@ -437,6 +437,10 @@ function(__ocv_module_turn_off the_module)
   list(REMOVE_ITEM OPENCV_MODULES_BUILD "${the_module}")
   list(REMOVE_ITEM OPENCV_MODULES_PUBLIC "${the_module}")
   set(HAVE_${the_module} OFF CACHE INTERNAL "Module ${the_module} can not be built in current configuration")
+  set(BUILD_${the_module} OFF CACHE INTERNAL "Module ${the_module} can not be built in current configuration")
+  if(BUILD_opencv_world)
+    set(OPENCV_MODULE_${the_module}_IS_PART_OF_WORLD OFF CACHE INTERNAL "Module ${the_module} can not be built in current configuration")
+  endif()
 
   set(OPENCV_MODULES_DISABLED_AUTO "${OPENCV_MODULES_DISABLED_AUTO}" CACHE INTERNAL "")
   set(OPENCV_MODULES_BUILD "${OPENCV_MODULES_BUILD}" CACHE INTERNAL "")
@@ -832,6 +836,8 @@ macro(ocv_glob_module_sources)
        "${CMAKE_CURRENT_LIST_DIR}/include/opencv2/${name}/hal/*.h"
        "${CMAKE_CURRENT_LIST_DIR}/include/opencv2/${name}/utils/*.hpp"
        "${CMAKE_CURRENT_LIST_DIR}/include/opencv2/${name}/utils/*.h"
+       "${CMAKE_CURRENT_LIST_DIR}/include/opencv2/${name}/slam/*.hpp"
+       "${CMAKE_CURRENT_LIST_DIR}/include/opencv2/${name}/slam/*.h"
        "${CMAKE_CURRENT_LIST_DIR}/include/opencv2/${name}/legacy/*.h"
   )
   file(GLOB lib_hdrs_detail

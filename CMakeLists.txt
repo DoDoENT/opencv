@@ -32,6 +32,10 @@ if(POLICY CMP0148)
   cmake_policy(SET CMP0148 OLD)  # CMake 3.27+: use CMake FindPythonInterp and FindPythonLib if available.
 endif()
 
+if(POLICY CMP0218)
+  cmake_policy(SET CMP0218 NEW)  # Suppress warning for CMAKE_WARN_DEPRECATED in CMake 4.4.0+
+endif()
+
 #
 # Configure OpenCV CMake hooks
 #
@@ -150,6 +154,7 @@ OCV_OPTION(BUILD_JASPER             "Build libjasper from source"        (WIN32 
 OCV_OPTION(BUILD_JPEG               "Build libjpeg from source"          (WIN32 OR ANDROID OR APPLE OR OPENCV_FORCE_3RDPARTY_BUILD) )
 OCV_OPTION(BUILD_PNG                "Build libpng from source"           (WIN32 OR ANDROID OR APPLE OR OPENCV_FORCE_3RDPARTY_BUILD) )
 OCV_OPTION(BUILD_WEBP               "Build WebP from source"             (((WIN32 OR ANDROID OR APPLE) AND NOT WINRT) OR OPENCV_FORCE_3RDPARTY_BUILD) )
+OCV_OPTION(BUILD_HARFBUZZ           "Build HarfBuzz from source"         (WIN32 OR ANDROID OR APPLE OR OPENCV_FORCE_3RDPARTY_BUILD) )
 OCV_OPTION(BUILD_TBB                "Download and build TBB from source" (ANDROID OR OPENCV_FORCE_3RDPARTY_BUILD) )
 OCV_OPTION(BUILD_IPP_IW             "Build IPP IW from source"           (NOT MINGW OR OPENCV_FORCE_3RDPARTY_BUILD) IF (X86_64 OR X86) AND NOT WINRT )
 OCV_OPTION(BUILD_ITT                "Build Intel ITT from source"
@@ -174,7 +179,7 @@ OCV_OPTION(WITH_CAP_IOS "Enable iOS video capture" ON
 OCV_OPTION(WITH_CAROTENE "Use NVidia carotene acceleration library for ARM platform" (NOT CV_DISABLE_OPTIMIZATION)
   VISIBLE_IF (ARM OR AARCH64) AND NOT IOS AND NOT XROS)
 OCV_OPTION(WITH_KLEIDICV "Use KleidiCV library for ARM platforms" (NOT CV_DISABLE_OPTIMIZATION)
-  VISIBLE_IF (AARCH64 AND (ANDROID OR UNIX)))
+  VISIBLE_IF (AARCH64 AND (ANDROID OR UNIX OR CV_CLANG_CL)))
 OCV_OPTION(WITH_NDSRVP "Use Andes RVP extension" (NOT CV_DISABLE_OPTIMIZATION)
   VISIBLE_IF RISCV)
 OCV_OPTION(WITH_HAL_RVV "Use HAL RVV optimizations" (NOT CV_DISABLE_OPTIMIZATION)
@@ -199,6 +204,9 @@ OCV_OPTION(WITH_CUBLAS "Include NVidia Cuda Basic Linear Algebra Subprograms (BL
 OCV_OPTION(WITH_CUDNN "Include NVIDIA CUDA Deep Neural Network (cuDNN) library support" WITH_CUDA
   VISIBLE_IF WITH_CUDA
   VERIFY HAVE_CUDNN)
+OCV_OPTION(WITH_CUDNNJIT "Include NVIDIA CUDA Deep Neural Network (cuDNN) graph API support with runtime compiled (JIT) engines, used only when WITH_CUDNN is off" OFF
+  VISIBLE_IF WITH_CUDA
+  VERIFY HAVE_CUDNNJIT OR HAVE_CUDNN)
 OCV_OPTION(WITH_NVCUVID "Include NVidia Video Decoding library support" ON
   VISIBLE_IF WITH_CUDA
   VERIFY HAVE_NVCUVID)
@@ -258,6 +266,9 @@ OCV_OPTION(WITH_JPEGXL "Include JPEG XL support" OFF
 OCV_OPTION(WITH_WEBP "Include WebP support" ON
   VISIBLE_IF NOT WINRT
   VERIFY HAVE_WEBP)
+OCV_OPTION(WITH_HARFBUZZ "Enable HarfBuzz text shaping for putText/getTextSize" ON
+  VISIBLE_IF TRUE
+  VERIFY HAVE_HARFBUZZ)
 OCV_OPTION(WITH_OPENEXR "Include ILM support via OpenEXR" (WIN32 OR ANDROID OR APPLE) OR NOT CMAKE_CROSSCOMPILING
   VISIBLE_IF NOT APPLE_FRAMEWORK AND NOT WINRT
   VERIFY HAVE_OPENEXR)
@@ -505,7 +516,12 @@ OCV_OPTION(ENABLE_CUDA_FIRST_CLASS_LANGUAGE "Enable CUDA as a first class langua
 OCV_OPTION(ENABLE_PYLINT              "Add target with Pylint checks"                            (BUILD_DOCS OR BUILD_EXAMPLES) IF (NOT CMAKE_CROSSCOMPILING AND NOT APPLE_FRAMEWORK) )
 OCV_OPTION(ENABLE_FLAKE8              "Add target with Python flake8 checker"                    (BUILD_DOCS OR BUILD_EXAMPLES) IF (NOT CMAKE_CROSSCOMPILING AND NOT APPLE_FRAMEWORK) )
 
-OCV_OPTION(WITH_UNIFONT               "Build 'uni' font (WQY MicroHei) into OpenCV"              (NOT BUILD_opencv_js)
+# Optional built-in fonts. Only the "sans" font (Rubik) is always compiled into imgproc;
+# the others cost ~150 KB (italic) and ~2 MB (uni) of library size and can instead be
+# supplied at run time as external files via cv::FontFace::setBuiltinFont().
+OCV_OPTION(WITH_ITALICFONT            "Build 'italic' font (Rubik Italic) into OpenCV"           OFF
+           VERIFY HAVE_ITALICFONT)
+OCV_OPTION(WITH_UNIFONT               "Build 'uni' font (WQY MicroHei) into OpenCV"              OFF
            VERIFY HAVE_UNIFONT)
 
 if(ENABLE_IMPL_COLLECTION)
@@ -767,6 +783,7 @@ endif()
 include(cmake/OpenCVFindFrameworks.cmake)
 
 include(cmake/OpenCVFindLibsGrfmt.cmake)
+include(cmake/OpenCVFindHarfBuzz.cmake)
 include(cmake/OpenCVFindLibsGUI.cmake)
 include(cmake/OpenCVFindLibsVideo.cmake)
 include(cmake/OpenCVFindLibsPerf.cmake)
@@ -1440,8 +1457,15 @@ if(WITH_VTK OR HAVE_VTK)
   status("    VTK support:" HAVE_VTK THEN "YES (ver ${VTK_VERSION})" ELSE NO)
 endif()
 
-if(WITH_UNIFONT OR HAVE_UNIFONT)
-  status("    Built-in Unicode font:" HAVE_UNIFONT THEN "YES" ELSE "NO")
+if(HAVE_HARFBUZZ)
+  set(_builtin_fonts "sans")
+  if(HAVE_ITALICFONT)
+    set(_builtin_fonts "${_builtin_fonts} italic")
+  endif()
+  if(HAVE_UNIFONT)
+    set(_builtin_fonts "${_builtin_fonts} uni")
+  endif()
+  status("    Built-in fonts:" "${_builtin_fonts}")
 endif()
 
 # ========================== MEDIA IO ==========================
@@ -1478,11 +1502,7 @@ if(WITH_WEBP OR HAVE_WEBP)
 endif()
 
 if(WITH_AVIF OR HAVE_AVIF)
-  if(libavif_VERSION)
-    status("    AVIF:" AVIF_FOUND THEN "${AVIF_LIBRARY} (ver ${libavif_VERSION})" ELSE "NO")
-  else()
-    status("    AVIF:" AVIF_FOUND THEN "${AVIF_LIBRARY}" ELSE "NO")
-  endif()
+  status("    AVIF:" AVIF_FOUND THEN "${AVIF_LIBRARY} (ver ${AVIF_VERSION})" ELSE "NO")
 endif()
 
 if(WITH_SPNG)
@@ -1733,6 +1753,8 @@ endif()
 status("")
 status("  Other third-party libraries:")
 
+status("    HarfBuzz:"   HAVE_HARFBUZZ THEN "${HARFBUZZ_VERSION}" ELSE "NO")
+
 if(WITH_IPP AND HAVE_IPP)
   status("    Intel IPP:" "${IPP_VERSION_STR} [${IPP_VERSION_MAJOR}.${IPP_VERSION_MINOR}.${IPP_VERSION_BUILD}]")
   status("           at:" "${IPP_ROOT_DIR}")
@@ -1749,6 +1771,8 @@ if(WITH_IPP AND HAVE_IPP)
   else()
     status("    Intel IPP IW:"   NO)
   endif()
+elseif(DEFINED WITH_IPP)
+  status("    Intel IPP:" WITH_IPP THEN "NO (download/detection failed)" ELSE "NO")
 endif()
 
 if(WITH_ARMPL AND HAVE_ARMPL)
@@ -1899,6 +1923,11 @@ if(WITH_CUDA OR HAVE_CUDA)
  if(WITH_CUDNN OR HAVE_CUDNN)
     status("")
     status("  cuDNN:" HAVE_CUDNN THEN "YES (ver ${CUDNN_VERSION})" ELSE NO)
+endif()
+
+ if(WITH_CUDNNJIT OR HAVE_CUDNNJIT)
+    status("")
+    status("  cuDNN JIT:" HAVE_CUDNNJIT THEN "YES (ver ${CUDNN_VERSION})" ELSE NO)
 endif()
 
 if(WITH_VULKAN OR HAVE_VULKAN)
