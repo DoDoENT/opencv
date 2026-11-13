@@ -70,86 +70,103 @@ _KNOWN_OPTS = {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3"],
             "cl_copts": [],
             "implies": ["sse", "sse2", "sse3"],
+            "detect_macro": "defined(__SSSE3__) || defined(__AVX__)",
         },
         "sse4_1": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1"],
             "cl_copts": [],
             "implies": ["sse", "sse2", "sse3", "ssse3"],
+            "detect_macro": "defined(__SSE4_1__) || defined(__AVX__)",
         },
         "popcnt": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt"],
             "cl_copts": [],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1"],
+            "detect_macro": "defined(__POPCNT__) || defined(__SSE4_2__) || defined(__AVX__)",
         },
         "sse4_2": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2"],
             "cl_copts": [],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt"],
+            "detect_macro": "defined(__SSE4_2__) || defined(__AVX__)",
         },
         "avx": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mavx"],
             "cl_copts": ["/arch:AVX"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2"],
+            "detect_macro": "defined(__AVX__)",
         },
         "fp16": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mavx"],
             "cl_copts": ["/arch:AVX"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx"],
+            "detect_macro": "defined(__F16C__) || defined(__AVX2__)",
         },
         "fma3": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mfma", "-mavx"],
             "cl_copts": ["/arch:AVX"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx"],
+            "detect_macro": "defined(__FMA__) || defined(__AVX2__)",
         },
         "avx2": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2"],
             "cl_copts": ["/arch:AVX2"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16"],
+            "detect_macro": "defined(__AVX2__)",
         },
         "avx_vnni": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavxvnni"],
             "cl_copts": ["/arch:AVX2"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2"],
+            "detect_macro": "defined(__AVXVNNI__)",
         },
         "avx_512f": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f"],
             "cl_copts": ["/arch:AVX512"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2"],
+            "detect_macro": "defined(__AVX512F__)",
         },
         "avx512_common": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f", "-mavx512cd"],
             "cl_copts": ["/arch:AVX512"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2", "avx_512f"],
+            "detect_macro": "defined(CV_CPU_COMPILE_AVX_512F) && defined(__AVX512CD__)",
         },
         "avx512_knl": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f", "-mavx512cd", "-mavx512er", "-mavx512pf"],
             "cl_copts": ["/arch:AVX512"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2", "avx_512f", "avx512_common"],
+            "detect_macro": "defined(CV_CPU_COMPILE_AVX512_COMMON) && defined(__AVX512ER__) && defined(__AVX512PF__)",
         },
         "avx512_knm": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f", "-mavx512cd", "-mavx512er", "-mavx512pf", "-mavx5124fmaps", "-mavx5124vnniw", "-mavx512vpopcntdq"],
             "cl_copts": ["/arch:AVX512"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2", "avx_512f", "avx512_common", "avx512_knl"],
+            "detect_macro": "defined(CV_CPU_COMPILE_AVX512_KNL) && defined(__AVX5124FMAPS__) && defined(__AVX5124VNNIW__) && defined(__AVX512VPOPCNTDQ__)",
         },
         "avx512_skx": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f", "-mavx512cd", "-mavx512bw", "-mavx512dq", "-mavx512vl"],
             "cl_copts": ["/arch:AVX512"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2", "avx_512f", "avx512_common"],
+            "detect_macro": "defined(CV_CPU_COMPILE_AVX512_COMMON) && defined(__AVX512BW__) && defined(__AVX512DQ__) && defined(__AVX512VL__)",
         },
         "avx512_cnl": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f", "-mavx512cd", "-mavx512bw", "-mavx512dq", "-mavx512vl", "-mavx512ifma", "-mavx512vbmi"],
             "cl_copts": ["/arch:AVX512"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2", "avx_512f", "avx512_common", "avx512_skx"],
+            "detect_macro": "defined(CV_CPU_COMPILE_AVX512_SKX) && defined(__AVX512IFMA__) && defined(__AVX512VBMI__)",
         },
         "avx512_clx": {
             "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f", "-mavx512cd", "-mavx512bw", "-mavx512dq", "-mavx512vl", "-mavx512vnni"],
             "cl_copts": ["/arch:AVX512"],
             "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2", "avx_512f", "avx512_common", "avx512_skx"],
+            "detect_macro": "defined(CV_CPU_COMPILE_AVX512_SKX) && defined(__AVX512VNNI__)",
         },
         "avx512_icl": {
-            "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f", "-mavx512cd", "-mavx512bw", "-mavx512dq", "-mavx512vl", "-mavx512ifma", "-mavx512vbmi", "-mavx512vbmi2", "-mavx512bitalg", "-mavx512vpopcntdq"],
+            "copts": ["-msse", "-msse2", "-msse3", "-mssse3", "-msse4.1", "-mpopcnt", "-msse4.2", "-mf16c", "-mfma", "-mavx", "-mavx2", "-mavx512f", "-mavx512cd", "-mavx512bw", "-mavx512dq", "-mavx512vl", "-mavx512ifma", "-mavx512vbmi", "-mavx512vnni", "-mavx512vbmi2", "-mavx512bitalg", "-mavx512vpopcntdq"],
             "cl_copts": ["/arch:AVX512"],
-            "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2", "avx_512f", "avx512_common", "avx512_skx"],
+            "implies": ["sse", "sse2", "sse3", "ssse3", "sse4_1", "popcnt", "sse4_2", "avx", "fma3", "fp16", "avx2", "avx_512f", "avx512_common", "avx512_skx", "avx512_cnl", "avx512_clx"],
+            "detect_macro": "defined(CV_CPU_COMPILE_AVX512_CNL) && defined(CV_CPU_COMPILE_AVX512_CLX) && defined(__AVX512VBMI2__) && defined(__AVX512BITALG__) && defined(__AVX512VPOPCNTDQ__)",
         },
     },
     "armv7": {
@@ -162,6 +179,7 @@ _KNOWN_OPTS = {
             "copts": ["-mfpu=neon-fp16", "-mfp16-format=ieee"],
             "cl_copts": [],
             "implies": ["neon"],
+            "detect_macro": "defined(__ARM_FP) && (__ARM_FP & 2)",
         },
     },
     "arm64": {
@@ -179,21 +197,25 @@ _KNOWN_OPTS = {
             "copts": ["-march=armv8.2-a+dotprod"],
             "cl_copts": [],
             "implies": ["neon"],
+            "detect_macro": "defined(__ARM_FEATURE_DOTPROD)",
         },
         "neon_fp16": {
             "copts": ["-march=armv8.2-a+fp16"],
             "cl_copts": [],
             "implies": ["neon"],
+            "detect_macro": "defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)",
         },
         "neon_bf16": {
             "copts": ["-march=armv8.2-a+bf16"],
             "cl_copts": [],
             "implies": ["neon"],
+            "detect_macro": "defined(__ARM_FEATURE_BF16_VECTOR_ARITHMETIC)",
         },
         "sve": {
             "copts": ["-march=armv8.2-a+sve"],
             "cl_copts": [],
             "implies": [],
+            "detect_macro": "defined(__ARM_FEATURE_SVE)",
         }
     },
     "mips64": {
@@ -201,6 +223,7 @@ _KNOWN_OPTS = {
             "copts": ["-mmsa"],
             "cl_copts": [],
             "implies": [],
+            "detect_macro": "defined(__mips_msa)",
         },
     },
     "ppc64le": {
@@ -208,11 +231,13 @@ _KNOWN_OPTS = {
             "copts": ["-mvsx", "-maltivec"],
             "cl_copts": [],
             "implies": [],
+            "detect_macro": "defined(__VSX__)",
         },
         "vsx3": {
             "copts": ["-mvsx", "-maltivec", "-mpower9-vector"],
             "cl_copts": [],
             "implies": ["vsx"],
+            "detect_macro": "defined(__POWER9_VECTOR__)",
         },
     },
     "riscv64": {
@@ -220,6 +245,7 @@ _KNOWN_OPTS = {
             "copts": [],
             "cl_copts": [],
             "implies": [],
+            "detect_macro": "defined(__riscv_vector) || defined(__riscv_v)",
         },
     },
     "loongarch64": {
@@ -227,11 +253,13 @@ _KNOWN_OPTS = {
             "copts": ["-mlsx"],
             "cl_copts": [],
             "implies": [],
+            "detect_macro": "defined(__loongarch_sx)",
         },
         "lasx": {
             "copts": ["-mlasx"],
             "cl_copts": [],
-            "implies": [],
+            "implies": ["lsx"],
+            "detect_macro": "defined(__loongarch_asx)",
         },
     },
 }
@@ -247,9 +275,8 @@ def _arches_for_opt(opt):
         return arches
 
 
-# Optimizations that will always be enabled for a given architecture
-# All other optimizations will be dispatched at runtime
-# TODO: make these configurable via build flag
+# Optimizations that will always be enabled for a given architecture by default.
+# Higher baselines can be selected via --@opencv//:cpu_baseline=<opt> or compiler target flags (-march=...).
 BASELINE_OPTS = {
     "x86_64": ["sse", "sse2", "sse3"],
     "armv7": ["neon"],
@@ -260,14 +287,38 @@ BASELINE_OPTS = {
     "loongarch64": [],
 }
 
+CONFIGURABLE_BASELINES_BY_ARCH = {
+    arch: list(opts.keys())
+    for arch, opts in _KNOWN_OPTS.items()
+}
+
+ALL_CONFIGURABLE_BASELINES = list({
+    opt: True
+    for opts in _KNOWN_OPTS.values()
+    for opt in opts.keys()
+}.keys())
+
+def _is_opt_in_baseline(arch, opt, baseline_opt):
+    return (
+        opt in ENABLED_OPTS[arch]["baseline"] or
+        opt == baseline_opt or
+        opt in _KNOWN_OPTS[arch][baseline_opt]["implies"]
+    )
+
 def _calc_enabled_opts():
     enabled_opts = {}
     for arch, baseline_opts in BASELINE_OPTS.items():
         possible_opts = _KNOWN_OPTS[arch].keys()
         dispatched_opts = [opt for opt in possible_opts if opt not in baseline_opts]
+        detect_macros = {
+            opt: _KNOWN_OPTS[arch][opt]["detect_macro"]
+            for opt in dispatched_opts
+            if "detect_macro" in _KNOWN_OPTS[arch][opt]
+        }
         enabled_opts[arch] = {
             "baseline": baseline_opts,
             "dispatched": dispatched_opts,
+            "detect_macros": detect_macros,
         }
     return enabled_opts
 
@@ -401,15 +452,12 @@ def opencv_module(
     simd_extra_headers = []
 
     dispatched_targets = {
-        "@platforms//cpu:x86_64": [],
-        "@platforms//cpu:armv7": [],
-        "@platforms//cpu:arm64": [],
-        "@platforms//cpu:mips64": [],
-        "@platforms//cpu:ppc64le": [],
-        "@platforms//cpu:riscv64": [],
-        "@platforms//cpu:loongarch64": [],
         "//conditions:default": [],
     }
+    for arch, baseline_opts in CONFIGURABLE_BASELINES_BY_ARCH.items():
+        dispatched_targets["@platforms//cpu:{}".format(arch)] = []
+        for baseline_opt in baseline_opts:
+            dispatched_targets["//:{}_baseline_{}".format(arch, baseline_opt)] = []
 
     for fname, opts in dispatched_files.items():
         # Define file paths for SIMD declarations and SIMD header
@@ -513,6 +561,9 @@ def opencv_module(
                         ],
                     )
                     dispatched_targets["@platforms//cpu:{}".format(arch)].append(Label(":" + simd_target_name))
+                    for baseline_opt in CONFIGURABLE_BASELINES_BY_ARCH[arch]:
+                        if force_dispatch or fname in ["lut", "equalize_hist"] or not _is_opt_in_baseline(arch, opt, baseline_opt):
+                            dispatched_targets["//:{}_baseline_{}".format(arch, baseline_opt)].append(Label(":" + simd_target_name))
             else:
                 dispatch_modes_simd[arch] = dispatch_modes_empty
 
@@ -522,6 +573,28 @@ def opencv_module(
         select_dict = {}
         for arch in simd_opts.keys():
             select_dict["@platforms//cpu:{}".format(arch)] = simd_definitions_start + simd_opts[arch] + dispatch_modes_simd[arch] + simd_definitions_end
+            for baseline_opt in CONFIGURABLE_BASELINES_BY_ARCH[arch]:
+                if force_dispatch or fname in ["lut", "equalize_hist"]:
+                    baseline_dispatched_opts = dispatch_simd[arch]
+                else:
+                    baseline_dispatched_opts = [
+                        opt
+                        for opt in dispatch_simd[arch]
+                        if not _is_opt_in_baseline(arch, opt, baseline_opt)
+                    ]
+                if len(baseline_dispatched_opts) > 0:
+                    baseline_simd_opts = []
+                    for opt in baseline_dispatched_opts:
+                        baseline_simd_opts += [
+                            "#define CV_CPU_DISPATCH_MODE {}".format(opt.upper()),
+                            "#include \"opencv2/core/private/cv_cpu_include_simd_declarations.hpp\"",
+                        ]
+                    baseline_dispatch_modes = [
+                        "#define CV_CPU_DISPATCH_MODES_ALL " + ", ".join([x.upper() for x in reversed(baseline_dispatched_opts) + ["BASELINE"]]),
+                    ]
+                    select_dict["//:{}_baseline_{}".format(arch, baseline_opt)] = simd_definitions_start + baseline_simd_opts + baseline_dispatch_modes + simd_definitions_end
+                else:
+                    select_dict["//:{}_baseline_{}".format(arch, baseline_opt)] = simd_definitions_start + dispatch_modes_empty + simd_definitions_end
 
         select_dict["//conditions:default"] = simd_definitions_start + dispatch_modes_empty + simd_definitions_end
 
@@ -574,6 +647,13 @@ def opencv_module(
         if arch in ["x86_64", "armv7"]:
             baseline_copts["//:{}_clang_cl".format(arch)] = arch_cl_flags
             baseline_copts["//:{}_msvc_cl".format(arch)] = arch_cl_flags
+        for opt in CONFIGURABLE_BASELINES_BY_ARCH[arch]:
+            opt_flags = arch_flags if opt in opts["baseline"] else _KNOWN_OPTS[arch][opt]["copts"]
+            opt_cl_flags = arch_cl_flags if opt in opts["baseline"] else _KNOWN_OPTS[arch][opt]["cl_copts"]
+            baseline_copts["//:{}_baseline_{}".format(arch, opt)] = opt_flags
+            if arch in ["x86_64", "armv7"]:
+                baseline_copts["//:{}_clang_cl_baseline_{}".format(arch, opt)] = opt_cl_flags
+                baseline_copts["//:{}_msvc_cl_baseline_{}".format(arch, opt)] = opt_cl_flags
 
         # some modules have hand-optimized version for specific dispatched optimization
         # This will not be covered by the dispatched cc_library above, so we need to add additional target for it
@@ -621,6 +701,8 @@ def opencv_module(
                 ],
             )
             dispatched_targets["@platforms//cpu:{}".format(arch)].append(Label(":" + simd_target_name))
+            for baseline_opt in CONFIGURABLE_BASELINES_BY_ARCH[arch]:
+                dispatched_targets["//:{}_baseline_{}".format(arch, baseline_opt)].append(Label(":" + simd_target_name))
 
     if sources != None:
         # used by videoio and highgui modules

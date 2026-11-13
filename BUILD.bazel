@@ -1,5 +1,5 @@
 load("@bazel_skylib//lib:selects.bzl", "selects")
-load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
@@ -14,6 +14,8 @@ load(":utils.bzl", "blob2hdr")
 
 load(
     "//:opencv.bzl",
+    "ALL_CONFIGURABLE_BASELINES",
+    "CONFIGURABLE_BASELINES_BY_ARCH",
     "CONFIG_DESKTOP",
     "CONFIG_NON_DESKTOP",
     "ENABLED_OPTS",
@@ -120,24 +122,57 @@ write_file(
         content = [
             "// OpenCV CPU baseline features\n",
         ] + [
-            "#define CV_CPU_COMPILE_{} 1\n#define CV_CPU_BASELINE_COMPILE_{} 1\n".format(arch.upper(), arch.upper())
-            for arch in config.get("baseline", [])
+            "#define CV_CPU_COMPILE_{} 1\n#define CV_CPU_BASELINE_COMPILE_{} 1\n".format(opt.upper(), opt.upper())
+            for opt in config.get("baseline", [])
+        ] + [
+            (
+                "#if !defined(CV_CPU_DISPATCH_MODE) && ({})\n" +
+                "#define CV_CPU_COMPILE_{} 1\n" +
+                "#define CV_CPU_BASELINE_COMPILE_{} 1\n" +
+                "#define CV_CPU_BASELINE_{} , CV_CPU_{}\n" +
+                "#define CV_CPU_DISPATCH_{}\n" +
+                "#else\n" +
+                "#define CV_CPU_BASELINE_{}\n" +
+                "#define CV_CPU_DISPATCH_COMPILE_{} 1\n" +
+                "#define CV_CPU_DISPATCH_{} , CV_CPU_{}\n" +
+                "#endif\n"
+            ).format(
+                detect_macro,
+                opt.upper(),
+                opt.upper(),
+                opt.upper(),
+                opt.upper(),
+                opt.upper(),
+                opt.upper(),
+                opt.upper(),
+                opt.upper(),
+                opt.upper(),
+            )
+            for opt, detect_macro in config.get("detect_macros", {}).items()
         ] + [
             "#define CV_CPU_BASELINE_FEATURES 0 \\",
         ] + [
-            "    , CV_CPU_{} \\".format(arch.upper())
-            for arch in config.get("baseline", [])
+            "    , CV_CPU_{} \\".format(opt.upper())
+            for opt in config.get("baseline", [])
+        ] + [
+            "    CV_CPU_BASELINE_{} \\".format(opt.upper())
+            for opt in config.get("detect_macros", {}).keys()
         ] + [
             "\n",
             "// OpenCV supported CPU dispathed features\n",
         ] + [
-            "#define CV_CPU_DISPATCH_COMPILE_{} 1".format(arch.upper())
-            for arch in config.get("dispatched", [])
+            "#define CV_CPU_DISPATCH_COMPILE_{} 1".format(opt.upper())
+            for opt in config.get("dispatched", [])
+            if opt not in config.get("detect_macros", {})
         ] + [
             "\n#define CV_CPU_DISPATCH_FEATURES 0 \\",
         ] + [
-            "    , CV_CPU_{} \\".format(arch.upper())
-            for arch in config.get("dispatched", [])
+            (
+                "    CV_CPU_DISPATCH_{} \\".format(opt.upper())
+                if opt in config.get("detect_macros", {})
+                else "    , CV_CPU_{} \\".format(opt.upper())
+            )
+            for opt in config.get("dispatched", [])
         ] + [
             "\n",
         ],
@@ -1232,6 +1267,48 @@ config_setting(
     constraint_values = ["@platforms//cpu:x86_64"],
     flag_values = {"@rules_cc//cc/compiler:compiler": "msvc-cl"},
 )
+
+# Configurable CPU baseline across all architectures (mirrors CMake's CPU_BASELINE,
+# e.g. --@opencv//:cpu_baseline=avx2 on x86_64 or --@opencv//:cpu_baseline=sve on arm64).
+string_flag(
+    name = "cpu_baseline",
+    build_setting_default = "default",
+    values = [
+        "default",
+    ] + ALL_CONFIGURABLE_BASELINES,
+    visibility = ["//visibility:public"],
+)
+
+[
+    [
+        config_setting(
+            name = "{}_baseline_{}".format(arch, opt),
+            constraint_values = ["@platforms//cpu:{}".format(arch)],
+            flag_values = {":cpu_baseline": opt},
+        ),
+    ] + (
+        [
+            config_setting(
+                name = "{}_clang_cl_baseline_{}".format(arch, opt),
+                constraint_values = ["@platforms//cpu:{}".format(arch)],
+                flag_values = {
+                    "@rules_cc//cc/compiler:compiler": "clang-cl",
+                    ":cpu_baseline": opt,
+                },
+            ),
+            config_setting(
+                name = "{}_msvc_cl_baseline_{}".format(arch, opt),
+                constraint_values = ["@platforms//cpu:{}".format(arch)],
+                flag_values = {
+                    "@rules_cc//cc/compiler:compiler": "msvc-cl",
+                    ":cpu_baseline": opt,
+                },
+            ),
+        ] if arch in ["x86_64", "armv7"] else []
+    )
+    for arch, opts in CONFIGURABLE_BASELINES_BY_ARCH.items()
+    for opt in opts
+]
 
 config_setting(
     name = "armv7_clang_cl",
