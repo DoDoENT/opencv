@@ -32,14 +32,14 @@ OPENCV_OPTIMIZATION_COPTS = select({
     "//:debug_clang_cl_build": [],
     "//:debug_msvc_cl_build": [],
     "@rules_cc//cc/compiler:clang-cl": [
-        "/O1",
+        "/O2",
     ],
     "@rules_cc//cc/compiler:msvc-cl": [
-        "/O1",
+        "/O2",
     ],
     "//:debug_build": [],
     "//conditions:default": [
-        "-Os",
+        "-O3",
     ],
 })
 
